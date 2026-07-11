@@ -1,0 +1,33 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icon/Info_CloseD.png</file>
+        <file>icon/Info_OpenE.png</file>
+        <file>icon/Info_EditCopy.png</file>
+        <file>icon/Info_Prompt.png</file>
+        <file>icon/Info_Return.png</file>
+        <file>rc/myappicon.ico</file>
+        <file>icon/firstpage.png</file>
+        <file>icon/Setting.png</file>
+        <file>icon/close.png</file>
+        <file>icon/narrow.png</file>
+        <file>icon/login_account.png</file>
+        <file>icon/login_password.png</file>
+        <file>icon/add.png</file>
+        <file>icon/smallclose.png</file>
+        <file>icon/roundgray.png</file>
+        <file>icon/roundgreen.png</file>
+        <file>icon/roundred.png</file>
+        <file>icon/Info_CloseE.png</file>
+        <file>icon/Info_OpenD.png</file>
+        <file>icon/Info_Save.png</file>
+        <file>icon/cancle_D.png</file>
+        <file>icon/cancle_E.png</file>
+        <file>icon/ok_D.png</file>
+        <file>icon/ok_E.png</file>
+        <file>icon/smal_Info_edit.png</file>
+        <file>icon/Finsh_D.png</file>
+        <file>icon/Finsh_E.png</file>
+        <file>icon/Start_E.png</file>
+        <file>icon/Start_D.png</file>
+    </qresource>
+</RCC>

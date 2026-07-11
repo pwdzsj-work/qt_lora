@@ -1,0 +1,27 @@
+<RCC>
+    <qresource prefix="/">
+        <file>qml/AddAlarmValue.qml</file>
+        <file>qml/AddNewArea.qml</file>
+        <file>qml/AddNewPan.qml</file>
+        <file>qml/AddTimeTask.qml</file>
+        <file>qml/DataTableView.qml</file>
+        <file>qml/DeviceConfig.qml</file>
+        <file>qml/DeviceInfo.qml</file>
+        <file>qml/Login.qml</file>
+        <file>qml/MainInterface.qml</file>
+        <file>qml/CreatDevReadDataModel.qml</file>
+        <file>qml/CreatCHStateModel.qml</file>
+        <file>qml/CreatAreaListModel.qml</file>
+        <file>qml/AlarmThreshold.qml</file>
+        <file>qml/CreatQuickControlModel.qml</file>
+        <file>qml/CreatTimetaskModel.qml</file>
+        <file>qml/CreatAlarmListModel.qml</file>
+        <file>qml/CreatChannelPlanModel.qml</file>
+        <file>qml/CreatAlarmRangeModel.qml</file>
+        <file>qml/MsgDialog.qml</file>
+        <file>qml/DevHardSoftVar.qml</file>
+        <file>qml/CppSingletoQml.qml</file>
+        <file>qml/Creatplanchbox.qml</file>
+        <file>qml/RectangleCheckbox.qml</file>
+    </qresource>
+</RCC>
