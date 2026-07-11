@@ -16,6 +16,38 @@ Window {
      signal sendformlogintotimetask();
      signal sendformlogintoquickcontrol();//
       signal sendlogaccout(var account);//
+      property bool loginCompleted: false
+
+      function directLogin() {
+          if (loginCompleted) {
+              return;
+          }
+          loginCompleted = true;
+          countbowm.running = false;
+
+          for (var ijm1 = 0; ijm1 < 50; ijm1 ++) {
+             sqlitefun_obj.deleterow("quickcontrol", ijm1);
+          }
+
+          var lineid = sqlitefun_obj.traversedata("devdata", "id");
+          if (lineid !== "FAIL" && lineid !== "NONE" && lineid !== "") {
+              var lineidbuf = lineid.split("&");
+              for (var linne_i = 0; linne_i < lineidbuf.length; linne_i ++) {
+                    sqlitefun_obj.updaterowdata("devdata", "dev_linestate", "0", Number(lineidbuf[linne_i]));
+              }
+          }
+
+          user_tcpserver_qmlobj.tcpServerListen();
+          var MainInterfaceshow = Qt.createComponent("MainInterface.qml").createObject(loginWindow);
+          MainInterfaceshow.show();
+          loginWindow.sendformlogintotimetask();
+          loginWindow.sendformlogintoquickcontrol();
+          loginWindow.hide();
+      }
+
+      Component.onCompleted: {
+          Qt.callLater(directLogin);
+      }
     Rectangle {
       id:clorolde
                   anchors.fill: parent
@@ -175,7 +207,7 @@ Window {
         repeat: true
         interval: 3000
         triggeredOnStart: true
-        running:true
+        running:false
         onTriggered: {
             var logautoid = sqlitefun_obj.findsqldataID("userlog","account",account_edit.text)
             var  passwordl = sqlitefun_obj.findsqldata("userlog","password",Number(logautoid))
@@ -242,6 +274,8 @@ Window {
          }
 
          onClicked: {
+             directLogin()
+             return;
 
              var loagidtotall = sqlitefun_obj.traversedata("userlog","id")
              var loagidtotalbufl = loagidtotall.split('&')
