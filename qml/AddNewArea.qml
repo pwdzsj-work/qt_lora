@@ -1,7 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Controls 1.4
 
 Window {
     id: addnewareaWindow
@@ -62,7 +61,7 @@ Window {
             width: 29
             height: 28
             text: qsTr("2")
-            iconSource: "qrc:/icon/close.png"
+            icon.source: "qrc:/icon/close.png"
             onClicked: {
                  addnewareaWindow.destroy();
             }
@@ -174,7 +173,7 @@ Window {
         width: 50
         height: 32
         text: qsTr("2")
-        iconSource: "qrc:/icon/cancle_D.png"
+        icon.source: "qrc:/icon/cancle_D.png"
         onClicked: {
   addnewareaWindow.destroy();
         }
@@ -188,7 +187,7 @@ Window {
         width: 50
         height: 32
         text: qsTr("1")
-        iconSource: "qrc:/icon/ok_E.png"
+        icon.source: "qrc:/icon/ok_E.png"
         onClicked: {//保存分两种情况，一种是创建，一种是修改保存
             savedatatoconfig();
         }

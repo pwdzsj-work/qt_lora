@@ -1,4 +1,4 @@
-import QtQuick 2.12
+import QtQuick
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 
@@ -272,7 +272,9 @@ Window {
         height:29
         text: "180"
        // inputMask: "000"
-        validator: RegExpValidator{regExp:/[1-2][0-9][0-9]/}
+        validator: RegularExpressionValidator {
+            regularExpression: /[1-2][0-9][0-9]/
+        }
         selectByMouse: true
         font.capitalization: Font.MixedCase
         font.pointSize: 14
@@ -300,7 +302,9 @@ Window {
         height:28
         text: "260"
        // inputMask: "000"
-        validator: RegExpValidator{regExp:/[1-2][0-9][0-9]/}
+        validator: RegularExpressionValidator {
+            regularExpression: /[1-2][0-9][0-9]/
+        }
         selectByMouse: true
         font.capitalization: Font.MixedCase
         font.pointSize: 14

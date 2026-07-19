@@ -1,7 +1,6 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
-#include <QProcess>
 #include "cpp/user_tcpserver.h"
 #include "cpp/sqlitefun.h"
 int main(int argc, char *argv[])
@@ -15,6 +14,6 @@ int main(int argc, char *argv[])
     engine.load(QUrl(QStringLiteral("qrc:/qml/Login.qml")));
     if (engine.rootObjects().isEmpty())
         return -1;
-    return app.exec();
+    return QGuiApplication::exec();
 
 }

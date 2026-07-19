@@ -1,7 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Controls 1.4
 
 GridView{
     id: timetconmodel
@@ -65,8 +64,13 @@ GridView{
                 anchors.leftMargin: 205
                 width: 15
                 height: 15
-                text: qsTr("2")
-                iconSource: "qrc:/icon/smal_Info_edit.png"
+                text: ""
+                display: AbstractButton.IconOnly
+                icon.source: "qrc:/icon/smal_Info_edit.png"
+                icon.width: 15
+                icon.height: 15
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
                  editimetasklist(model.index,timetaskmodename.text);
                 }
@@ -79,8 +83,13 @@ GridView{
                 anchors.leftMargin: 225
                 width: 15
                 height: 15
-                text: qsTr("2")
-                iconSource: "qrc:/icon/smallclose.png"
+                text: ""
+                display: AbstractButton.IconOnly
+                icon.source: "qrc:/icon/smallclose.png"
+                icon.width: 15
+                icon.height: 15
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {//删除
                   deletimetasklist(model.index);//删除
                 }

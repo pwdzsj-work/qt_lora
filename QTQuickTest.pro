@@ -1,7 +1,7 @@
-QT += quickwidgets core gui network quick
-QT += sql
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-CONFIG += c++11
+!equals(QT_MAJOR_VERSION, 6): error("This project requires Qt 6")
+
+QT += core gui network quick qml sql
+CONFIG += c++17
 
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
@@ -21,9 +21,11 @@ SOURCES += \
     cpp/user_tcpserver.cpp \
     main.cpp
 
-RESOURCES += qml.qrc \
+RESOURCES += \
+    qml.qrc \
     images.qrc
- TARGET=FormalClientTools_V2.1.1
+
+TARGET = FormalClientTools_V2.1.1
 # Additional import path used to resolve QML modules in Qt Creator's code model
 QML_IMPORT_PATH =
 
@@ -35,8 +37,6 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
-RESOURCES += \
-    images.qrc
 RC_ICONS = ./rc/myappicon.ico
 
 FORMS +=

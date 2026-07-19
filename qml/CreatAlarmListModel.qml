@@ -1,7 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Controls 1.4
 
 GridView{
     id: creatalarmlist_showMode
@@ -48,7 +47,7 @@ GridView{
                     width: 20
                     height: 20
                     text: qsTr("2")
-                     iconSource: "qrc:/icon/smallclose.png"
+                     icon.source: "qrc:/icon/smallclose.png"
                     onClicked: {
                         deletalarmlist(model.index);//删除
                     }

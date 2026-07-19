@@ -1,7 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Controls 1.4
 
 Page {
 
@@ -58,7 +57,7 @@ Page {
             anchors.topMargin: 8
             width: 56
             height: 36
-            iconSource: "qrc:/icon/Info_Return.png"
+            icon.source: "qrc:/icon/Info_Return.png"
             onClicked:{
                 stack.pop()
                 sendMainInterfaceSignal(device_mac_s1.text);//发送信号
@@ -165,7 +164,7 @@ Page {
             width: 22
             height: 22
             text: qsTr("")
-            iconSource: "qrc:/icon/Info_EditCopy.png"
+            icon.source: "qrc:/icon/Info_EditCopy.png"
             onClicked: {
                 device_Info_Name.readOnly = false
             }
@@ -359,7 +358,7 @@ Page {
             width: 22
             height: 22
             text: qsTr("")
-            iconSource: "qrc:/icon/Info_EditCopy.png"
+            icon.source: "qrc:/icon/Info_EditCopy.png"
             onClicked: {
                 for(var i = 0; i < totalch_id.model.count; i ++)
                 {
@@ -396,7 +395,7 @@ Page {
                 anchors.topMargin: 400
                 width: 56
                 height: 36
-                iconSource: "qrc:/icon/Info_Save.png"
+                icon.source: "qrc:/icon/Info_Save.png"
                 onClicked: {
                     device_Info_Name.readOnly = true
                     var chnamestr = "";

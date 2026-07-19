@@ -1,7 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Controls 1.4
 
 Window {
     id: mainWindow
@@ -17,6 +16,31 @@ Window {
     signal sendloginaddpanSignal();//
     signal sendloginaddareaSignal();//
     signal sendloginaddalarmSignal();//
+
+    function showMainPage() {
+        if (stack.currentItem !== mainView)
+            stack.pop(mainView, StackView.Immediate)
+
+        mainView.visible = true
+        mainView.stack = stack
+    }
+
+    function showConfigPage() {
+        if (stack.currentItem === page_areaconfig)
+            return
+
+        if (stack.depth > 1)
+            stack.pop(mainView, StackView.Immediate)
+
+        page_areaconfig.visible = true
+        page_areaconfig.stack = stack
+        stack.push(page_areaconfig, StackView.Immediate)
+
+        mainWindow.sendloginaddpanSignal()
+        mainWindow.sendloginaddareaSignal()
+        mainWindow.sendloginaddalarmSignal()
+    }
+
     StackView {
         id: stack
         anchors.rightMargin: 0
@@ -72,9 +96,7 @@ Window {
             width: 52
             height: 24
             onPressed: { //接收鼠标按下事件
-                mainView.visible = true;
-                mainView.stack = stack;
-                stack.push(mainView)
+                mainWindow.showMainPage()
             }
             Text {
                 id: element3
@@ -94,12 +116,7 @@ Window {
             width: 52
             height: 24
             onPressed: { //接收鼠标按下事件
-                page_areaconfig.visible = true;
-                page_areaconfig.stack = stack;
-                stack.push(page_areaconfig)
-                mainWindow.sendloginaddpanSignal();
-                mainWindow.sendloginaddareaSignal();
-                mainWindow.sendloginaddalarmSignal();
+                mainWindow.showConfigPage()
             }
             Text {
                 id: element5
@@ -118,12 +135,15 @@ Window {
             anchors.topMargin: 28
             width: 34
             height: 32
-            text: qsTr("1")
-            iconSource: "qrc:/icon/firstpage.png"
+            text: ""
+            display: AbstractButton.IconOnly
+            icon.source: "qrc:/icon/firstpage.png"
+            icon.width: 30
+            icon.height: 26
+            icon.color: "transparent"
+            padding: 0
             onClicked: {
-                mainView.visible = true;
-                mainView.stack = stack;
-                stack.push(mainView)
+                mainWindow.showMainPage()
             }
         }
 
@@ -135,15 +155,15 @@ Window {
             anchors.topMargin: 30
             width: 34
             height: 28
-            text: qsTr("Tool Button")
-            iconSource: "qrc:/icon/Setting.png"
+            text: ""
+            display: AbstractButton.IconOnly
+            icon.source: "qrc:/icon/Setting.png"
+            icon.width: 28
+            icon.height: 28
+            icon.color: "transparent"
+            padding: 0
             onClicked: {
-                page_areaconfig.visible = true;
-                page_areaconfig.stack = stack;
-                stack.push(page_areaconfig)
-                mainWindow.sendloginaddpanSignal();
-                mainWindow.sendloginaddareaSignal();
-                mainWindow.sendloginaddalarmSignal();
+                mainWindow.showConfigPage()
             }
         }
 
@@ -155,8 +175,13 @@ Window {
             anchors.topMargin: 26
             width: 28
             height: 28
-            text: qsTr("2")
-            iconSource: "qrc:/icon/close.png"
+            text: ""
+            display: AbstractButton.IconOnly
+            icon.source: "qrc:/icon/close.png"
+            icon.width: 26
+            icon.height: 26
+            icon.color: "transparent"
+            padding: 0
             onClicked: {
                 Qt.quit()
             }
@@ -170,8 +195,13 @@ Window {
             anchors.topMargin: 28
             width: 27
             height: 25
-            text: qsTr("1")
-            iconSource: "qrc:/icon/narrow.png"
+            text: ""
+            display: AbstractButton.IconOnly
+            icon.source: "qrc:/icon/narrow.png"
+            icon.width: 24
+            icon.height: 24
+            icon.color: "transparent"
+            padding: 0
             onClicked: {
                 mainWindow.showMinimized()
             }
@@ -256,8 +286,13 @@ Window {
                             anchors.topMargin: 9
                             width: 35
                             height: 25
-                            text: qsTr("1")
-                            iconSource: "qrc:/icon/add.png"
+                            text: ""
+                            display: AbstractButton.IconOnly
+                            icon.source: "qrc:/icon/add.png"
+                            icon.width: 18
+                            icon.height: 18
+                            icon.color: "transparent"
+                            padding: 0
                             onClicked: {
                                 var AddTimeTaskshow = Qt.createComponent("AddTimeTask.qml").createObject(mainWindow);//建立父类与子类关系
                                 AddTimeTaskshow.show()//显示子对话框

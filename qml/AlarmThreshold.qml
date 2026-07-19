@@ -1,7 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Controls 1.4
 
 GridView{
     id: alarmthreshold_view
@@ -102,7 +101,7 @@ GridView{
                 width: 20
                 height: 20
                 text: qsTr("2")
-                iconSource: "qrc:/icon/smal_Info_edit.png"
+                icon.source: "qrc:/icon/smal_Info_edit.png"
                 onClicked: {
 
                 }
@@ -116,7 +115,7 @@ GridView{
                 width: 20
                 height: 20
                 text: qsTr("2")
-                iconSource: "qrc:/icon/smallclose.png"
+                icon.source: "qrc:/icon/smallclose.png"
                 onClicked: {
 
                 }

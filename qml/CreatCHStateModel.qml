@@ -1,7 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Controls 1.4
 
 GridView{
     id: measure_showMode
@@ -86,7 +85,7 @@ GridView{
                 height: 20
                 enabled: boolbntopench
                 text: qsTr("1")
-                iconSource: iconsourceopen
+                icon.source: iconsourceopen
                 onClicked: {
                         iconsourceopen = "qrc:/icon/Info_OpenE.png"
                         iconsourceclose = "qrc:/icon/Info_CloseD.png"
@@ -104,7 +103,7 @@ GridView{
                 height: 20
                 enabled: boolbntclosech
                 text: qsTr("2")
-                iconSource: iconsourceclose
+                icon.source: iconsourceclose
                 onClicked: {
                         iconsourceclose = "qrc:/icon/Info_CloseE.png"
                         iconsourceopen = "qrc:/icon/Info_OpenD.png"

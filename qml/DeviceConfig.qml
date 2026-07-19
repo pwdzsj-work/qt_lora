@@ -1,7 +1,6 @@
 import QtQuick 2.7
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Controls 1.4
 
 Page {
     id:deviceconfigpage
@@ -497,7 +496,7 @@ Page {
             width: 35
             height: 25
             text: qsTr("1")
-            iconSource: "qrc:/icon/add.png"
+            icon.source: "qrc:/icon/add.png"
             onClicked: {
                 if( areaconfig_menu0.text == "区域配置")
                 {
@@ -698,8 +697,6 @@ Page {
             mainWindow.updataquickmodelshowhandle(namestr,delayt,modelid,editorcreat);
     }
 }
-
-
 
 
 

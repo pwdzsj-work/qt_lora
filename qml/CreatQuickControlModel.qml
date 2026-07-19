@@ -1,7 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Controls 1.4
 
 GridView{
     id: quickconmodel
@@ -42,8 +41,13 @@ GridView{
                 anchors.leftMargin: 140
                 width: 40
                 height: 20
-                text: qsTr("2")
-                iconSource:devopbnt_icon
+                text: ""
+                display: AbstractButton.IconOnly
+                icon.source: devopbnt_icon
+                icon.width: 38
+                icon.height: 18
+                icon.color: "transparent"
+                padding: 0
                 //iconSource: "qrc:/icon/smal_Info_edit.png"
                 onClicked: {
                     closebnt_icon = "qrc:/icon/Finsh_D.png"
@@ -59,8 +63,13 @@ GridView{
                 anchors.leftMargin: 10
                 width: 40
                 height: 20
-                text: qsTr("2")
-                iconSource:closebnt_icon
+                text: ""
+                display: AbstractButton.IconOnly
+                icon.source: closebnt_icon
+                icon.width: 38
+                icon.height: 18
+                icon.color: "transparent"
+                padding: 0
                // iconSource: "qrc:/icon/smallclose.png"
                 onClicked: {
                   //  closebnt_icon = "qrc:/icon/Finsh_E.png"

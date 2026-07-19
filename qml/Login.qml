@@ -1,8 +1,6 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-import QtQuick.Controls 1.4
-import QtQuick.Controls.Styles 1.4
 Window {
 
     id:loginWindow
@@ -11,11 +9,38 @@ Window {
     visible: true
     flags: Qt.Window | Qt.FramelessWindowHint //去标题栏
     property StackView stack: null
+    property var mainInterfaceWindow: null
     width: 436
     height: 350
      signal sendformlogintotimetask();
      signal sendformlogintoquickcontrol();//
       signal sendlogaccout(var account);//
+
+    function openMainInterface() {
+        if (mainInterfaceWindow) {
+            mainInterfaceWindow.show()
+            loginWindow.hide()
+            return
+        }
+
+        const component = Qt.createComponent("MainInterface.qml")
+        if (component.status !== Component.Ready) {
+            console.error("Failed to create MainInterface:", component.errorString())
+            return
+        }
+
+        mainInterfaceWindow = component.createObject(null, { "transientParent": null })
+        if (!mainInterfaceWindow) {
+            console.error("Failed to instantiate MainInterface")
+            return
+        }
+
+        mainInterfaceWindow.show()
+        loginWindow.sendformlogintotimetask()
+        loginWindow.sendformlogintoquickcontrol()
+        loginWindow.hide()
+    }
+
     Rectangle {
       id:clorolde
                   anchors.fill: parent
@@ -49,7 +74,7 @@ Window {
             width: 28
             height: 22
             text: qsTr("Tool Button")
-            iconSource: "qrc:/icon/close.png"
+            icon.source: "qrc:/icon/close.png"
             onClicked: {
                 Qt.quit()
             }
@@ -210,12 +235,7 @@ Window {
                               sqlitefun_obj.updaterowdata("devdata","dev_linestate","0",Number(lineidbuf[linne_i]))
                         }
                         user_tcpserver_qmlobj.tcpServerListen()
-                       var MainInterfaceshow = Qt.createComponent("MainInterface.qml").createObject(loginWindow);//建立父类与子类关系
-                       MainInterfaceshow.show()//显示子对话框
-                       loginWindow.sendformlogintotimetask();
-                        loginWindow.sendformlogintoquickcontrol();
-                       loginWindow.hide()
-                       loginWindow.destroy()
+                       loginWindow.openMainInterface()
                     }
             }
 
@@ -223,6 +243,7 @@ Window {
 
     }
     Button {
+        id: loginSubmitButton
         anchors.left:parent.left
         anchors.leftMargin: 55
         anchors.top:parent.top
@@ -230,16 +251,14 @@ Window {
         width: 297
         height: 36
         text: "登录"
-         style: ButtonStyle {
-             background: Rectangle {
-                implicitWidth: 297;
-                implicitHeight: 30;
-                color: "#568bfb"
-                border.width: control.pressed? 5:3;
-                border.color: (control.hovered || control.pressed)
-                              ? "green":"#568bfb";
-             }
-         }
+        background: Rectangle {
+            implicitWidth: 297
+            implicitHeight: 30
+            color: "#568bfb"
+            border.width: loginSubmitButton.down ? 5 : 3
+            border.color: (loginSubmitButton.hovered || loginSubmitButton.down)
+                          ? "green" : "#568bfb"
+        }
 
          onClicked: {
 
@@ -266,12 +285,7 @@ Window {
                            sqlitefun_obj.updaterowdata("devdata","dev_linestate","0",Number(lineidbuf[linne_i]))
                      }
                      user_tcpserver_qmlobj.tcpServerListen()
-                        var MainInterfaceshow = Qt.createComponent("MainInterface.qml").createObject(loginWindow);//建立父类与子类关系
-                        MainInterfaceshow.show()//显示子对话框
-                       loginWindow.sendformlogintotimetask();
-                        loginWindow.sendformlogintoquickcontrol();
-                        loginWindow.hide()
-                        loginWindow.destroy()
+                        loginWindow.openMainInterface()
                  }
              }
              addloginMsg1.openMsg()
@@ -347,10 +361,6 @@ Window {
     }
     }
 
-    MainInterface{
-        id:mode_MainInterface
-        visible: false
-    }
     MsgDialog {
         id: addloginMsg1
         tipText: qsTr("账户名或密码不正确")

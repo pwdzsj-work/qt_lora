@@ -1,7 +1,6 @@
 #include "user_tcpserver.h"
 #include "user_global_param.h"
 #include <QLibrary>
-#include <qtextcodec.h>
 #include <QtGlobal>
 #include <QJsonParseError>
 #include <QJsonObject>
@@ -10,7 +9,6 @@
 #include <QString>
 #include <QSqlDatabase>
 #include <QSqlError>
-#include <QMessageBox>
 #include "sqlitefun.h"
 user_tcpserver :: user_tcpserver(QObject *parent):  QObject(parent)
 {
@@ -21,7 +19,7 @@ user_tcpserver :: user_tcpserver(QObject *parent):  QObject(parent)
     timerTaskedit = new QTimer(this);
     //连接信号槽
     connect(tcpserver,&QTcpServer::newConnection,this,&user_tcpserver::user_server_New_Connect);
-    connect(timerTask,SIGNAL(timeout()),this,SLOT(timerUpDate()));
+    connect(timerTask, &QTimer::timeout, this, &user_tcpserver::timerUpDate);
 
     for(quint8 i = 0; i < 100; i ++)
     {
@@ -71,7 +69,8 @@ void user_tcpserver::user_server_New_Connect()
 }
 void user_tcpserver::serversocket_Disconnected()//断开连接
 {
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     QTcpSocket *obj = (QTcpSocket*)sender();
     QString toqmlIpstr = obj->QAbstractSocket::peerAddress().toString().remove(0, 7) + "+" + QString:: asprintf("%d",obj->QAbstractSocket::peerPort());
     QString currentdel_id  = sqlitefunobj->findsqldataID("devdata","dev_ip",toqmlIpstr);
@@ -93,7 +92,8 @@ void user_tcpserver::serversocker_Retrun_Data()
     quint8 toqmlcmd = 0;
     QStringList  toqmldatastr;
     QString test_temp;
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     QString sql_macstru = "";
     QString sql_485addr = "";
     QString sql_kindstr = "";
@@ -481,7 +481,8 @@ void user_tcpserver::timerUpDate()//定时发送数据
     QStringList allmacstrbuf;
     QString allkindstr = "";
     QStringList allkindstrbuf;
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     static quint8 harddatasendendfalg = 0;
     if(harddatasendendfalg)
     {
@@ -665,7 +666,8 @@ void user_tcpserver::serversocket_Send_ReturnData(QString  qslmac, quint16 RegAd
     QStringList listmac;
     QString        Sqtidstr;
     QString        Modbusaddr;
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     quint8 macokflag = 0;
     Block_tcpdata.resize(user_global_param::ServerSend_buflen);
     typedef const char* (*Fun)(quint8* UniqueID, quint16 RegAddr, quint8 cmd,quint8 Result, quint16 Tocken);
@@ -755,7 +757,8 @@ void user_tcpserver::serversocket_Send_ReadData(QString  qslmac, quint16 RegAddr
     QStringList listmac;
     QString        Sqtidstr;
     QString        Modbusaddr;
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     quint8 macokflag = 0;
     Block_tcpdata.resize(user_global_param::ServerSend_buflen);
     typedef const char* (*Fun)(quint8* UniqueID, quint16 RegAddr, quint8 cmd,quint8 RegNum, quint16 Tocken);
@@ -847,7 +850,8 @@ void user_tcpserver::serversocket_Send_WriteData(QString  qslmac, quint16 RegAdd
     QString        Sqtidstr;
     QString        Modbusaddr;
     quint16 dataparamu[2];
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     quint8 macokflag = 0;
     Block_tcpdata.resize(user_global_param::ServerSend_buflen);
     typedef const char* (*Fun)(quint8* UniqueID, quint16 RegAddr, quint8 cmd,quint8 RegNum, quint16* DataParam, quint16 Tocken);
@@ -934,7 +938,8 @@ void user_tcpserver::timetasktotrigger(QString timetaskname,QString plannamestr,
     user_global_param::planname = plannamestr;
 
     QString  devnameid = 0;
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
 
     QString timetaskcontrolid = sqlitefunobj->findsqldataID("timingtaskdelay","tasknamed",oldpanname);
 
@@ -1023,7 +1028,8 @@ void user_tcpserver::timetasktotrigger(QString timetaskname,QString plannamestr,
 }
 QString user_tcpserver::timertaskdelaycontrol()//定时任务延时控制
 {
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     QString devid = "";
     QString devmac = "";
     QString pandevnames = "";
@@ -1203,7 +1209,8 @@ QString user_tcpserver::timertaskcontrol()//定时任务处理
     QString swstates = ""; //开关状态
     QDateTime current_date_time = QDateTime::currentDateTime();
     QString current_week = current_date_time.toString("ddd");
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     QString timtab_tasknamed = "";//获取定时
     QStringList timtab_tasknamedbuf;//获取定时列表
     QString timtab_tasknamedid;//获取定时列表
@@ -1373,7 +1380,8 @@ QString user_tcpserver::timertaskcontrol()//定时任务处理
 void user_tcpserver::quickcontrolqml(QString planname,QString chvalue,QString modelinx)
 {
     QString  devnameid = 0;
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     user_global_param::quickcontrolflag = 1;
     user_global_param::quickcontrolplanname = planname;
     user_global_param::quickcontrolchvalue = chvalue;
@@ -1416,7 +1424,8 @@ void user_tcpserver::quickcontrolqml(QString planname,QString chvalue,QString mo
 //快捷延时控制
 QString user_tcpserver::quickcontroldelayhandle()
 {
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     QString pannameid = "";
     QString devid = "";
     QString devmac = "";
@@ -1550,7 +1559,8 @@ QString user_tcpserver::quickcontrolhandle()
 
     QStringList plannamebufs;
     quint32 swstate = 0;
-    sqlitefun *sqlitefunobj = nullptr;
+    sqlitefun sqlite;
+    sqlitefun *sqlitefunobj = &sqlite;
     QDateTime current_date_time = QDateTime::currentDateTime();
     if(user_global_param::quickcontrolflag == 0)return "FAIL";
     plannamebufs = user_global_param::quickcontrolplanname.split("&");//预案名字

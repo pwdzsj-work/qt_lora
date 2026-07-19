@@ -1,4 +1,5 @@
 # Qt build output
+build-*/
 debug/
 release/
 *.o
