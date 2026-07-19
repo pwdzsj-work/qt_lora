@@ -1,0 +1,27 @@
+# Qt build output
+debug/
+release/
+*.o
+*.obj
+*.exe
+*.dll
+moc_*.cpp
+qrc_*.cpp
+qml_*_qml.cpp
+qml_*_qml.o
+qmlcache_loader.cpp
+qmlcache_loader.o
+
+# qmake generated files
+.qmake.stash
+Makefile
+Makefile.Debug
+Makefile.Release
+object_script.*
+
+# Qt Creator user files
+*.pro.user*
+
+# Runtime databases and temporary files
+*.db
+usersadmini~1appdatalocaltemptmp*
