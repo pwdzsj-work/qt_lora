@@ -10,7 +10,7 @@ GridView{
     signal quickcontrolswstate(var arealistseril,var chvalue);//删除
     model: ListModel{
     }
-    cellWidth: 280
+    cellWidth: width
     cellHeight: 40
 
     delegate:numberDelegatequ
@@ -18,7 +18,7 @@ GridView{
         id : numberDelegatequ
         Rectangle{
             id :qcall_user
-            width: 280
+            width: quickconmodel.width
             height: 40
             color:"#f3f7ff"
             Text {
@@ -37,8 +37,8 @@ GridView{
                 id: devoperbntqc
                 anchors.top:parent.top
                 anchors.topMargin: 10
-                anchors.left:parent.left
-                anchors.leftMargin: 140
+                anchors.right: devoperclosebntqc.left
+                anchors.rightMargin: 10
                 width: 40
                 height: 20
                 text: ""
@@ -59,8 +59,8 @@ GridView{
                 id: devoperclosebntqc
                 anchors.top:parent.top
                 anchors.topMargin: 10
-                anchors.left:devoperbntqc.right
-                anchors.leftMargin: 10
+                anchors.right: parent.right
+                anchors.rightMargin: 10
                 width: 40
                 height: 20
                 text: ""

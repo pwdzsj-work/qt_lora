@@ -2,8 +2,10 @@ import QtQuick
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 
-Window {
+AdaptiveWindow {
     id: addalarmWindow
+    designWidth: 390
+    designHeight: 330
     width: 390
     height: 330
     opacity: 1

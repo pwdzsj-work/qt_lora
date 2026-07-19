@@ -7,16 +7,19 @@ Page {
     id:setWindow
     title: qsTr("设置")
     visible: true
-    width: 1200
-    height: 800
+    width: parent ? parent.width : 1200
+    height: parent ? parent.height : 800
+    readonly property bool compactLayout: width < 720
+    readonly property real infoColumnWidth: Math.max(220, (width - 20) / (compactLayout ? 2 : 3))
     property StackView stack: null
     signal sendMainInterfaceSignal(var mac_str);
     Rectangle {
         id : infomain_rec
-        width: 1200
-        height: 717
-        x: 0
-        y: 83
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.topMargin: Math.max(64, Math.min(83, parent.height * 0.11))
         border.color: "#999999" //设置边框的颜色
         border.width: 1       //设置边框的大小
         Text {
@@ -51,13 +54,19 @@ Page {
         }
         ToolButton {
             id: toolButton5
-            anchors.left:parent.left
-            anchors.leftMargin: 1050
+            anchors.right: parent.right
+            anchors.rightMargin: 90
             anchors.top:parent.top
             anchors.topMargin: 8
             width: 56
             height: 36
+            text: ""
+            display: AbstractButton.IconOnly
             icon.source: "qrc:/icon/Info_Return.png"
+            icon.width: 48
+            icon.height: 30
+            icon.color: "transparent"
+            padding: 0
             onClicked:{
                 stack.pop()
                 sendMainInterfaceSignal(device_mac_s1.text);//发送信号
@@ -65,8 +74,8 @@ Page {
         }
         MouseArea { //为窗口添加鼠标事件
             id:mouseidfh
-            anchors.left:parent.left
-            anchors.leftMargin: 1100
+            anchors.right: parent.right
+            anchors.rightMargin: 20
             anchors.top:parent.top
             anchors.topMargin: 10
             width: 59
@@ -163,8 +172,13 @@ Page {
             anchors.topMargin: 82
             width: 22
             height: 22
-            text: qsTr("")
+            text: ""
+            display: AbstractButton.IconOnly
             icon.source: "qrc:/icon/Info_EditCopy.png"
+            icon.width: 18
+            icon.height: 18
+            icon.color: "transparent"
+            padding: 0
             onClicked: {
                 device_Info_Name.readOnly = false
             }
@@ -172,7 +186,7 @@ Page {
         Text {
             id: device_name_s1
             anchors.left:parent.left
-            anchors.leftMargin: 260
+            anchors.leftMargin: setWindow.infoColumnWidth
             anchors.top:parent.top
             anchors.topMargin: 85
             text: qsTr("输入电压:")
@@ -182,7 +196,7 @@ Page {
         Text {
             id: device_Info_Ave_V
             anchors.left:parent.left
-            anchors.leftMargin: 350
+            anchors.leftMargin: setWindow.infoColumnWidth + 90
             anchors.top:parent.top
             anchors.topMargin: 85
             color: "#588cfc"
@@ -195,9 +209,9 @@ Page {
         Text {
             id: device_name_s2
             anchors.left:parent.left
-            anchors.leftMargin: 510
+            anchors.leftMargin: setWindow.compactLayout ? 10 : setWindow.infoColumnWidth * 2
             anchors.top:parent.top
-            anchors.topMargin: 85
+            anchors.topMargin: setWindow.compactLayout ? 133 : 85
             text: qsTr("设备温度:")
             font.family: "宋体"
             font.pointSize: 13
@@ -209,9 +223,9 @@ Page {
             id: device_Info_Temp
             height: 18
             anchors.left:parent.left
-            anchors.leftMargin: 600
+            anchors.leftMargin: setWindow.compactLayout ? 100 : setWindow.infoColumnWidth * 2 + 90
             anchors.top:parent.top
-            anchors.topMargin: 82
+            anchors.topMargin: setWindow.compactLayout ? 130 : 82
             color: "#588cfc"
             text: qsTr("40℃")
             font.family: "宋体"
@@ -244,7 +258,7 @@ Page {
         Text {
             id: device_name_s7
             anchors.left:parent.left
-            anchors.leftMargin: 260
+            anchors.leftMargin: setWindow.infoColumnWidth
             anchors.top:parent.top
             anchors.topMargin: 133
             text: qsTr("设备电流:")
@@ -255,7 +269,7 @@ Page {
         Text {
             id: device_Info_Total_I
             anchors.left:parent.left
-            anchors.leftMargin: 350
+            anchors.leftMargin: setWindow.infoColumnWidth + 90
             anchors.top:parent.top
             anchors.topMargin: 133
             color: "#588cfc"
@@ -267,9 +281,9 @@ Page {
         Text {
             id: device_onlinestate
             anchors.left:parent.left
-            anchors.leftMargin: 510
+            anchors.leftMargin: setWindow.compactLayout ? 10 : setWindow.infoColumnWidth * 2
             anchors.top:parent.top
-            anchors.topMargin: 133
+            anchors.topMargin: setWindow.compactLayout ? 181 : 133
             text: qsTr("在线状态:")
             font.family: "宋体"
             font.pointSize: 13
@@ -280,9 +294,9 @@ Page {
             width: 34
             height: 18
             anchors.left:parent.left
-            anchors.leftMargin: 600
+            anchors.leftMargin: setWindow.compactLayout ? 100 : setWindow.infoColumnWidth * 2 + 90
             anchors.top:parent.top
-            anchors.topMargin: 131
+            anchors.topMargin: setWindow.compactLayout ? 179 : 131
             color: "#588cfc"
             text: qsTr("在线")
             font.family: "宋体"
@@ -327,7 +341,8 @@ Page {
         MouseArea { //为窗口添加鼠标事件
             id:mouseidbj
             anchors.left:parent.left
-            anchors.leftMargin: 1100
+            anchors.right: parent.right
+            anchors.rightMargin: 20
             anchors.top:parent.top
             anchors.topMargin: 200
             width: 59
@@ -351,14 +366,19 @@ Page {
         }
         ToolButton {
             id: toolButton
-            anchors.left:parent.left
-            anchors.leftMargin: 1070
+            anchors.right: parent.right
+            anchors.rightMargin: 88
             anchors.top:parent.top
             anchors.topMargin: 205
             width: 22
             height: 22
-            text: qsTr("")
+            text: ""
+            display: AbstractButton.IconOnly
             icon.source: "qrc:/icon/Info_EditCopy.png"
+            icon.width: 18
+            icon.height: 18
+            icon.color: "transparent"
+            padding: 0
             onClicked: {
                 for(var i = 0; i < totalch_id.model.count; i ++)
                 {
@@ -377,8 +397,10 @@ Page {
             anchors.leftMargin: 10
             anchors.top:parent.top
             anchors.topMargin: 230
-            width: 1126
-            height: 460
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.rightMargin: 10
+            anchors.bottomMargin: 26
             color: "#ffffff"
             CreatCHStateModel {
                 id: totalch_id;
@@ -389,13 +411,19 @@ Page {
             }
             ToolButton {
                 id: savebtn
-                anchors.left:parent.left
-                anchors.leftMargin: 1050
-                anchors.top:parent.top
-                anchors.topMargin: 400
+                anchors.right: parent.right
+                anchors.rightMargin: 20
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 18
                 width: 56
                 height: 36
+                text: ""
+                display: AbstractButton.IconOnly
                 icon.source: "qrc:/icon/Info_Save.png"
+                icon.width: 48
+                icon.height: 30
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
                     device_Info_Name.readOnly = true
                     var chnamestr = "";

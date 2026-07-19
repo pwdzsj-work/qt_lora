@@ -1,8 +1,10 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 
-Window {
+AdaptiveWindow {
     visible: true
+    designWidth: 640
+    designHeight: 480
     width: 640
     height: 480
     title: qsTr("Hello World")

@@ -1,8 +1,10 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-Window {
+AdaptiveWindow {
     id: addnewareaWindow2
+    designWidth: 504
+    designHeight: 480
     width: 504
     height: 480
     opacity: 1

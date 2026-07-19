@@ -2,8 +2,10 @@ import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 
-Window {
+AdaptiveWindow {
     id: addnewareaWindow
+    designWidth: 504
+    designHeight: 480
     width: 504
     height: 480
     opacity: 1
@@ -60,8 +62,13 @@ Window {
             anchors.leftMargin: 470
             width: 29
             height: 28
-            text: qsTr("2")
+            text: ""
+            display: AbstractButton.IconOnly
             icon.source: "qrc:/icon/close.png"
+            icon.width: 24
+            icon.height: 24
+            icon.color: "transparent"
+            padding: 0
             onClicked: {
                  addnewareaWindow.destroy();
             }
@@ -172,8 +179,13 @@ Window {
         anchors.leftMargin: 353
         width: 50
         height: 32
-        text: qsTr("2")
+        text: ""
+        display: AbstractButton.IconOnly
         icon.source: "qrc:/icon/cancle_D.png"
+        icon.width: 50
+        icon.height: 32
+        icon.color: "transparent"
+        padding: 0
         onClicked: {
   addnewareaWindow.destroy();
         }
@@ -186,8 +198,13 @@ Window {
         anchors.leftMargin: 418
         width: 50
         height: 32
-        text: qsTr("1")
+        text: ""
+        display: AbstractButton.IconOnly
         icon.source: "qrc:/icon/ok_E.png"
+        icon.width: 50
+        icon.height: 32
+        icon.color: "transparent"
+        padding: 0
         onClicked: {//保存分两种情况，一种是创建，一种是修改保存
             savedatatoconfig();
         }

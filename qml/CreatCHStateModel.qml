@@ -84,8 +84,13 @@ GridView{
                 width: 30
                 height: 20
                 enabled: boolbntopench
-                text: qsTr("1")
+                text: ""
+                display: AbstractButton.IconOnly
                 icon.source: iconsourceopen
+                icon.width: 26
+                icon.height: 18
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
                         iconsourceopen = "qrc:/icon/Info_OpenE.png"
                         iconsourceclose = "qrc:/icon/Info_CloseD.png"
@@ -102,8 +107,13 @@ GridView{
                 width: 30
                 height: 20
                 enabled: boolbntclosech
-                text: qsTr("2")
+                text: ""
+                display: AbstractButton.IconOnly
                 icon.source: iconsourceclose
+                icon.width: 26
+                icon.height: 18
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
                         iconsourceclose = "qrc:/icon/Info_CloseE.png"
                         iconsourceopen = "qrc:/icon/Info_OpenD.png"

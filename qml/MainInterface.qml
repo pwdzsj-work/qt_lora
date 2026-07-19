@@ -2,13 +2,56 @@ import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 
-Window {
+AdaptiveWindow {
     id: mainWindow
     visible: true
+    responsiveContent: true
+    designWidth: 1200
+    designHeight: 800
     width: 1200
     height: 800
-    title: qsTr("电力优化管控系统")
+    minimumWidth: 560
+    minimumHeight: 480
+    title: qsTr("LoRa继电器智控系统")
     property int i :0
+    readonly property bool narrowLayout: width < 760
+    readonly property bool mediumLayout: width >= 760 && width < 1050
+    readonly property real responsiveGap: Math.max(6, Math.min(12, width * 0.01))
+    readonly property real responsiveHeaderHeight: Math.max(64, Math.min(84, height * 0.11))
+    readonly property real responsiveContentTop: responsiveHeaderHeight + responsiveGap
+    readonly property real responsiveBodyHeight: Math.max(240, height - responsiveContentTop - responsiveGap)
+    readonly property real panelHeaderHeight: 48
+    readonly property real narrowPanelWidth: Math.max(280, width - 2 * responsiveGap)
+    readonly property real narrowContentHeight: responsiveContentTop + 48 + 260 + responsiveGap
+                                                + 48 + 240 + responsiveGap
+                                                + 48 + 420 + responsiveGap
+                                                + 48 + 320 + responsiveGap
+    readonly property real leftColumnWidth: narrowLayout ? narrowPanelWidth
+                                                          : mediumLayout ? width * 0.34 - 1.5 * responsiveGap
+                                                                         : width * 0.23 - 1.5 * responsiveGap
+    readonly property real contentColumnX: narrowLayout ? responsiveGap
+                                                         : leftColumnWidth + 2 * responsiveGap
+    readonly property real contentAreaWidth: width - contentColumnX - responsiveGap
+    readonly property real alarmColumnWidth: narrowLayout ? narrowPanelWidth
+                                                           : mediumLayout ? contentAreaWidth
+                                                                          : width * 0.26 - 1.5 * responsiveGap
+    readonly property real deviceColumnWidth: narrowLayout ? narrowPanelWidth
+                                                            : mediumLayout ? contentAreaWidth
+                                                                           : contentAreaWidth - alarmColumnWidth - responsiveGap
+    readonly property real alarmColumnX: narrowLayout || mediumLayout
+                                         ? contentColumnX
+                                         : contentColumnX + deviceColumnWidth + responsiveGap
+    readonly property real leftSectionHeight: (responsiveBodyHeight - responsiveGap) / 2
+    readonly property real timerPanelY: narrowLayout
+                                        ? responsiveContentTop + panelHeaderHeight + 260 + responsiveGap
+                                        : responsiveContentTop + leftSectionHeight + responsiveGap
+    readonly property real devicePanelY: narrowLayout
+                                         ? timerPanelY + panelHeaderHeight + 240 + responsiveGap
+                                         : responsiveContentTop
+    readonly property real alarmPanelY: narrowLayout
+                                        ? devicePanelY + panelHeaderHeight + 420 + responsiveGap
+                                        : mediumLayout ? responsiveContentTop + responsiveBodyHeight * 0.60 + responsiveGap
+                                                       : responsiveContentTop
     signal sendDeviceInfoSignal(var devicemacstr);
     signal sendedittimetask(var enflag,var seril);//
     flags: Qt.Window | Qt.FramelessWindowHint //去标题栏
@@ -52,13 +95,13 @@ Window {
     }
     Rectangle
     {
-        width: 1199
-        height: 83
+        width: parent.width
+        height: mainWindow.responsiveHeaderHeight
         color: "#2a5298"
     }
     MouseArea { //为窗口添加鼠标事件
-        width: 1199
-        height: 75
+        width: parent.width
+        height: mainWindow.responsiveHeaderHeight
         acceptedButtons: Qt.LeftButton //只处理鼠标左键
         property point clickPos: "0,0"
 
@@ -70,8 +113,14 @@ Window {
             var delta = Qt.point(mouse.x-clickPos.x, mouse.y-clickPos.y)
 
             //如果mainwindow继承自QWidget,用setPos
-            mainWindow.setX(mainWindow.x+delta.x)
-            mainWindow.setY(mainWindow.y+delta.y)
+            mainWindow.setX(mainWindow.x + delta.x)
+            mainWindow.setY(mainWindow.y + delta.y)
+        }
+        onDoubleClicked: {
+            if (mainWindow.visibility === Window.Maximized)
+                mainWindow.showNormal()
+            else
+                mainWindow.showMaximized()
         }
 
         Text {
@@ -80,17 +129,17 @@ Window {
             anchors.leftMargin: 24
             anchors.top:parent.top
             anchors.topMargin: 26
-            width: 257
+            width: Math.max(180, parent.width * 0.25)
             height: 36
             color: "#f2efef"
-            text: qsTr("电力优化管控系统")
+            text: qsTr("LoRa继电器智控系统")
             font.bold: true
-            font.pixelSize: 30
+            font.pixelSize: Math.max(18, Math.min(30, mainWindow.width / 40))
         }
         MouseArea { //为窗口添加鼠标事件
             id:mouseid
             anchors.left:parent.left
-            anchors.leftMargin: 360
+            anchors.leftMargin: Math.max(250, mainWindow.width * 0.30)
             anchors.top:parent.top
             anchors.topMargin: 32
             width: 52
@@ -110,7 +159,7 @@ Window {
         MouseArea { //为窗口添加鼠标事件
             id:mouseidee
             anchors.left:parent.left
-            anchors.leftMargin: 493
+            anchors.leftMargin: Math.max(380, mainWindow.width * 0.41)
             anchors.top:parent.top
             anchors.topMargin: 32
             width: 52
@@ -130,7 +179,7 @@ Window {
         ToolButton {
             id: toolButton
             anchors.left:parent.left
-            anchors.leftMargin: 326
+            anchors.leftMargin: Math.max(216, mainWindow.width * 0.27)
             anchors.top:parent.top
             anchors.topMargin: 28
             width: 34
@@ -150,7 +199,7 @@ Window {
         ToolButton {
             id: toolButton1
             anchors.left:parent.left
-            anchors.leftMargin: 457
+            anchors.leftMargin: Math.max(346, mainWindow.width * 0.38)
             anchors.top:parent.top
             anchors.topMargin: 30
             width: 34
@@ -169,8 +218,8 @@ Window {
 
         ToolButton {
             id: btnMainExit
-            anchors.left:parent.left
-            anchors.leftMargin: 1147
+            anchors.right: parent.right
+            anchors.rightMargin: 24
             anchors.top:parent.top
             anchors.topMargin: 26
             width: 28
@@ -188,18 +237,47 @@ Window {
         }
 
         ToolButton {
+            id: btnMainMax
+            anchors.right: btnMainExit.left
+            anchors.rightMargin: 20
+            anchors.top: parent.top
+            anchors.topMargin: 26
+            width: 28
+            height: 28
+            text: ""
+            display: AbstractButton.IconOnly
+            icon.source: mainWindow.visibility === Window.Maximized
+                         ? "qrc:/icon/restore.svg" : "qrc:/icon/maximize.svg"
+            icon.width: 26
+            icon.height: 26
+            icon.color: "transparent"
+            padding: 0
+            hoverEnabled: true
+            ToolTip.visible: hovered
+            ToolTip.text: mainWindow.visibility === Window.Maximized
+                          ? qsTr("还原") : qsTr("最大化")
+
+            onClicked: {
+                if (mainWindow.visibility === Window.Maximized)
+                    mainWindow.showNormal()
+                else
+                    mainWindow.showMaximized()
+            }
+        }
+
+        ToolButton {
             id: btnMainSmall
-            anchors.left:parent.left
-            anchors.leftMargin: 1100
+            anchors.right: btnMainMax.left
+            anchors.rightMargin: 20
             anchors.top:parent.top
-            anchors.topMargin: 28
-            width: 27
-            height: 25
+            anchors.topMargin: 26
+            width: 28
+            height: 28
             text: ""
             display: AbstractButton.IconOnly
             icon.source: "qrc:/icon/narrow.png"
-            icon.width: 24
-            icon.height: 24
+            icon.width: 26
+            icon.height: 26
             icon.color: "transparent"
             padding: 0
             onClicked: {
@@ -211,7 +289,7 @@ Window {
         Text {
             id: element6
             anchors.left:parent.left
-            anchors.leftMargin: 950
+            anchors.leftMargin: Math.max(600, mainWindow.width - 250)
             anchors.top:parent.top
             anchors.topMargin: 27
             width: 66
@@ -222,9 +300,12 @@ Window {
             font.pixelSize: 24
             font.bold: true
         }
-        Page {
+        Flickable {
             id: mainView
             property StackView stack: null
+            contentWidth: width
+            contentHeight: mainWindow.narrowLayout ? mainWindow.narrowContentHeight : height
+            clip: true
             Image {
                 id: image_main
                 anchors.fill: parent
@@ -237,12 +318,10 @@ Window {
                            border.width: 1       //设置边框的大小
                     Rectangle {
                         id: rectangle
-                        anchors.left:parent.left
-                        anchors.leftMargin: 9
-                        anchors.top:parent.top
-                        anchors.topMargin: 94
-                        width: 271
-                        height: 48
+                        x: mainWindow.responsiveGap
+                        y: mainWindow.responsiveContentTop
+                        width: mainWindow.leftColumnWidth
+                        height: mainWindow.panelHeaderHeight
                         color: "#ffffff"
                         border.color: "#f3f7ff"
                         Text {
@@ -260,12 +339,10 @@ Window {
 
                     Rectangle {
                         id: rectangleT
-                        anchors.left:parent.left
-                        anchors.leftMargin: 8
-                        anchors.top:parent.top
-                        anchors.topMargin: 461
-                        width: 271
-                        height: 44
+                        x: mainWindow.responsiveGap
+                        y: mainWindow.timerPanelY
+                        width: mainWindow.leftColumnWidth
+                        height: mainWindow.panelHeaderHeight
                         color: "#ffffff"
                         border.color: "#f3f7ff"
                         Text {
@@ -307,12 +384,11 @@ Window {
                     }
                     Rectangle {
                         id: listViewRec
-                        anchors.left:parent.left
-                        anchors.leftMargin: 8
-                        anchors.top:parent.top
-                        anchors.topMargin: 148
-                        width: 271
-                        height: 304
+                        x: mainWindow.responsiveGap
+                        y: mainWindow.responsiveContentTop + mainWindow.panelHeaderHeight
+                        width: mainWindow.leftColumnWidth
+                        height: mainWindow.narrowLayout ? 260
+                                                        : mainWindow.leftSectionHeight - mainWindow.panelHeaderHeight
                         color: "#ffffff"
                         border.color: "#f3f7ff"
                         CreatQuickControlModel {
@@ -329,16 +405,17 @@ Window {
                     }
                     Rectangle {
                         id: listViewRect
-                        x: 8
-                        y: 512
-                        width: 271
-                        height: 280
+                        x: mainWindow.responsiveGap
+                        y: mainWindow.timerPanelY + mainWindow.panelHeaderHeight
+                        width: mainWindow.leftColumnWidth
+                        height: mainWindow.narrowLayout ? 240
+                                                        : mainWindow.leftSectionHeight - mainWindow.panelHeaderHeight
                         border.color: "#f3f7ff"
                         Rectangle {
                             id: rectangle6
                             x: 1
                             y: 2
-                            width: 257
+                            width: parent.width - 2
                             height: 47
                             color: "#f3f7ff"
                             border.color: "#f3f7ff"
@@ -359,8 +436,8 @@ Window {
                             x: 1
                             anchors.top:parent.top
                             anchors.topMargin: 63
-                            width: 257
-                            height: 209
+                            width: parent.width - 2
+                            height: parent.height - y - 8
                             color: "#ffffff"
                             CreatTimetaskModel {
                                 id: mode_mtimetaskp5
@@ -375,10 +452,10 @@ Window {
 
                     Rectangle {
                         id: rectangle3
-                        x: 285
-                        y: 94
-                        width: 583
-                        height: 48
+                        x: mainWindow.contentColumnX
+                        y: mainWindow.devicePanelY
+                        width: mainWindow.deviceColumnWidth
+                        height: mainWindow.panelHeaderHeight
                         color: "#ffffff"
                         border.color: "#f3f7ff"
                         Text {
@@ -397,12 +474,12 @@ Window {
 
                     Rectangle {
                         id: rectangle4
-                        anchors.left:parent.left
-                        anchors.leftMargin: 285
-                        anchors.top:parent.top
-                        anchors.topMargin: 148
-                        width: 583
-                        height: 644
+                        x: mainWindow.contentColumnX
+                        y: mainWindow.devicePanelY + mainWindow.panelHeaderHeight
+                        width: mainWindow.deviceColumnWidth
+                        height: mainWindow.narrowLayout ? 420
+                                                        : mainWindow.mediumLayout ? mainWindow.responsiveBodyHeight * 0.60 - mainWindow.panelHeaderHeight
+                                                                                  : mainWindow.responsiveBodyHeight - mainWindow.panelHeaderHeight
                         color: "#ffffff"
                         border.color: "#f3f7ff"
                         CreatDevReadDataModel{
@@ -415,12 +492,10 @@ Window {
 
                     Rectangle {
                         id: rectangle5
-                        anchors.left:parent.left
-                        anchors.leftMargin: 879
-                        anchors.top:parent.top
-                        anchors.topMargin: 94
-                        width: 313
-                        height: 48
+                        x: mainWindow.alarmColumnX
+                        y: mainWindow.alarmPanelY
+                        width: mainWindow.alarmColumnWidth
+                        height: mainWindow.panelHeaderHeight
                         color: "#ffffff"
                         border.color: "#f3f7ff"
                         Text {
@@ -437,12 +512,12 @@ Window {
                     }
                     Rectangle {
                         id: rectangle78
-                        anchors.left:parent.left
-                        anchors.leftMargin: 879
-                        anchors.top:parent.top
-                        anchors.topMargin: 148
-                        width: 313
-                        height: 644
+                        x: mainWindow.alarmColumnX
+                        y: mainWindow.alarmPanelY + mainWindow.panelHeaderHeight
+                        width: mainWindow.alarmColumnWidth
+                        height: mainWindow.narrowLayout ? 320
+                                                        : mainWindow.mediumLayout ? mainWindow.responsiveBodyHeight * 0.40 - mainWindow.panelHeaderHeight - mainWindow.responsiveGap
+                                                                                  : mainWindow.responsiveBodyHeight - mainWindow.panelHeaderHeight
                         color: "#ffffff"
                         border.color: "#f3f7ff"
                         CreatAlarmListModel{

@@ -13,7 +13,7 @@ GridView{
     model: ListModel{
         //ListElement{reLiSer_text: "0";areaname_text:"1";devname_text:"2"}
     }
-    cellWidth: 1200
+    cellWidth: width
     cellHeight: 25
     delegate:numberDelegatealarmv
 
@@ -21,7 +21,7 @@ GridView{
         id : numberDelegatealarmv
         Rectangle{
             id :all_user
-            width: 950
+            width: alarmrange_moidu.width
             height: 20
             color:"#ffffff"
             Text {
@@ -104,8 +104,13 @@ GridView{
                 anchors.leftMargin: 920
                 width: 30
                 height: 20
-                text: qsTr("2")
+                text: ""
+                display: AbstractButton.IconOnly
                 icon.source: "qrc:/icon/smal_Info_edit.png"
+                icon.width: 16
+                icon.height: 16
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
                     editalarmrangelist(model.index);//编辑
                 }
@@ -118,8 +123,13 @@ GridView{
                 anchors.leftMargin: 950
                 width: 20
                 height: 20
-                text: qsTr("2")
+                text: ""
+                display: AbstractButton.IconOnly
                  icon.source: "qrc:/icon/smallclose.png"
+                icon.width: 16
+                icon.height: 16
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
                     deletalarmrangelist(model.index);//删除
                 }

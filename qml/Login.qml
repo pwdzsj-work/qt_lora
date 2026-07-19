@@ -1,7 +1,7 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-Window {
+AdaptiveWindow {
 
     id:loginWindow
     title: qsTr("登录")
@@ -10,6 +10,9 @@ Window {
     flags: Qt.Window | Qt.FramelessWindowHint //去标题栏
     property StackView stack: null
     property var mainInterfaceWindow: null
+    property string lastLoginStatus: "idle"
+    designWidth: 436
+    designHeight: 350
     width: 436
     height: 350
      signal sendformlogintotimetask();
@@ -23,22 +26,64 @@ Window {
             return
         }
 
-        const component = Qt.createComponent("MainInterface.qml")
+        const component = Qt.createComponent("MainInterface.qml", Component.PreferSynchronous)
         if (component.status !== Component.Ready) {
+            lastLoginStatus = "component-error"
             console.error("Failed to create MainInterface:", component.errorString())
             return
         }
 
         mainInterfaceWindow = component.createObject(null, { "transientParent": null })
         if (!mainInterfaceWindow) {
+            lastLoginStatus = "instance-error"
             console.error("Failed to instantiate MainInterface")
             return
         }
 
         mainInterfaceWindow.show()
+        lastLoginStatus = "success"
         loginWindow.sendformlogintotimetask()
         loginWindow.sendformlogintoquickcontrol()
         loginWindow.hide()
+    }
+
+    function completeLogin() {
+        countbowm.running = false
+
+        for (let quickIndex = 0; quickIndex < 50; ++quickIndex)
+            sqlitefun_obj.deleterow("quickcontrol", quickIndex)
+
+        const lineIds = sqlitefun_obj.traversedata("devdata", "id")
+        if (lineIds !== "FAIL" && lineIds !== "NONE" && lineIds !== "") {
+            const lineIdList = lineIds.split("&")
+            for (let lineIndex = 0; lineIndex < lineIdList.length; ++lineIndex)
+                sqlitefun_obj.updaterowdata("devdata", "dev_linestate", "0",
+                                            Number(lineIdList[lineIndex]))
+        }
+
+        user_tcpserver_qmlobj.tcpServerListen()
+        loginWindow.openMainInterface()
+    }
+
+    function tryLogin() {
+        lastLoginStatus = "checking"
+        const loginId = sqlitefun_obj.findsqldataID("userlog", "account",
+                                                    account_edit.text.trim())
+        if (loginId === "FAIL" || loginId === "NONE" || loginId === "") {
+            lastLoginStatus = "account-not-found"
+            addloginMsg1.openMsg()
+            return
+        }
+
+        const expectedPassword = sqlitefun_obj.findsqldata("userlog", "password",
+                                                           Number(loginId))
+        if (expectedPassword !== password_edit.text) {
+            lastLoginStatus = "password-mismatch"
+            addloginMsg1.openMsg()
+            return
+        }
+
+        loginWindow.completeLogin()
     }
 
     Rectangle {
@@ -59,7 +104,7 @@ Window {
             anchors.top:parent.top
             anchors.topMargin: 49
             color: "#f3f7ff"
-            text: qsTr("电力优化管控系统")
+            text: qsTr("LoRa继电器智控系统")
             font.bold: true
             font.family: "宋体"
             font.pointSize: 22
@@ -242,56 +287,43 @@ Window {
         }
 
     }
-    Button {
+    Rectangle {
         id: loginSubmitButton
+        z: 100
         anchors.left:parent.left
         anchors.leftMargin: 55
         anchors.top:parent.top
         anchors.topMargin: 266
         width: 297
         height: 36
-        text: "登录"
-        background: Rectangle {
-            implicitWidth: 297
-            implicitHeight: 30
-            color: "#568bfb"
-            border.width: loginSubmitButton.down ? 5 : 3
-            border.color: (loginSubmitButton.hovered || loginSubmitButton.down)
-                          ? "green" : "#568bfb"
+        color: "#568bfb"
+        border.width: loginMouseArea.pressed ? 5 : 3
+        border.color: (loginMouseArea.containsMouse || loginMouseArea.pressed)
+                      ? "green" : "#568bfb"
+
+        Text {
+            anchors.centerIn: parent
+            text: qsTr("登录")
+            color: "#202020"
         }
 
-         onClicked: {
+        MouseArea {
+            id: loginMouseArea
+            anchors.fill: parent
+            hoverEnabled: true
+            acceptedButtons: Qt.LeftButton
+            cursorShape: Qt.PointingHandCursor
+            onPressed: function(mouse) {
+                mouse.accepted = true
+                loginWindow.tryLogin()
+            }
+        }
+    }
 
-             var loagidtotall = sqlitefun_obj.traversedata("userlog","id")
-             var loagidtotalbufl = loagidtotall.split('&')
-             var accountl = ""
-             var passwordl = ""
-             countbowm.running = false
-
-             for(var iii = 0; iii < loagidtotalbufl.length; iii ++)
-             {
-                accountl = sqlitefun_obj.findsqldata("userlog","account",Number(loagidtotalbufl[iii]))
-                passwordl = sqlitefun_obj.findsqldata("userlog","password",Number(loagidtotalbufl[iii]))
-                 if(accountl === account_edit.text && passwordl === password_edit.text)
-                 {
-                     for(var ijm1 = 0; ijm1 < 50; ijm1 ++)
-                     {
-                        sqlitefun_obj.deleterow("quickcontrol",ijm1);
-                     }
-                     var lineid = sqlitefun_obj.traversedata("devdata","id")
-                     var lineidbuf = lineid.split("&")
-                     for(var linne_i = 0; linne_i < lineidbuf.length; linne_i ++)
-                     {
-                           sqlitefun_obj.updaterowdata("devdata","dev_linestate","0",Number(lineidbuf[linne_i]))
-                     }
-                     user_tcpserver_qmlobj.tcpServerListen()
-                        loginWindow.openMainInterface()
-                 }
-             }
-             addloginMsg1.openMsg()
-             return;
-
-         }
+    Shortcut {
+        sequences: [ StandardKey.InsertParagraphSeparator,
+                     StandardKey.InsertLineSeparator ]
+        onActivated: loginWindow.tryLogin()
     }
 
     Text {

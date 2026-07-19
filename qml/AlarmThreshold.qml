@@ -10,14 +10,14 @@ GridView{
     model: ListModel{
  //ListElement{chserial_text: chserial;alarmcolor:"red";chname_text:chname;voltcurr_text:chvoltcurr;iconsourceopen:miconsourceopen; iconsourceclose:miconsourceclose}
     }
-    cellWidth: 1000
+    cellWidth: width
     cellHeight: 55
     delegate:numberDelegate
     Component{
         id : numberDelegate
         Rectangle{
             id :all_user
-            width: 950
+            width: measure_showMode.width
             height: 20
             color:"#f3f7ff"
             Text {
@@ -100,8 +100,13 @@ GridView{
                 anchors.leftMargin: 890
                 width: 20
                 height: 20
-                text: qsTr("2")
+                text: ""
+                display: AbstractButton.IconOnly
                 icon.source: "qrc:/icon/smal_Info_edit.png"
+                icon.width: 16
+                icon.height: 16
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
 
                 }
@@ -114,8 +119,13 @@ GridView{
                 anchors.leftMargin: 920
                 width: 20
                 height: 20
-                text: qsTr("2")
+                text: ""
+                display: AbstractButton.IconOnly
                 icon.source: "qrc:/icon/smallclose.png"
+                icon.width: 16
+                icon.height: 16
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
 
                 }

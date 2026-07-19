@@ -7,26 +7,39 @@ Page {
     title: qsTr("区域配置")
     visible: true
     property StackView stack: null
+    readonly property bool compactLayout: width < 700
+    readonly property real layoutGap: Math.max(6, Math.min(12, width * 0.01))
+    readonly property real layoutTopInset: Math.max(72, Math.min(98, height * 0.12))
+    readonly property real navigationWidth: compactLayout ? width - 2 * layoutGap
+                                                          : Math.max(100, width * 0.10)
+    readonly property real layoutContentX: compactLayout ? layoutGap
+                                                          : navigationWidth + layoutGap
+    readonly property real layoutContentTop: compactLayout ? layoutTopInset + 92
+                                                            : layoutTopInset + 56
+    readonly property real layoutContentWidth: width - layoutContentX - layoutGap
+    readonly property real layoutContentHeight: height - layoutContentTop - layoutGap
     signal sendaddareSignal(var enflag,var seril);//
     signal sendaddpanSignal(var enflag,var seril,var editorcreat,var panname);//
     signal sendaddalarmSignal(var enflag,var seril);//
-    width: 1200
-    height: 800
+    width: parent ? parent.width : 1200
+    height: parent ? parent.height : 800
     Rectangle {
         id:colorayu
         anchors.fill: parent
       //  color: "#e6e6e6"
            border.color: "#999999" //设置边框的颜色
                border.width: 1       //设置边框的大小
-    Column{
+    Grid {
         id:coloumndev;
-        x: 0
-        y: 97
+        x: deviceconfigpage.compactLayout ? deviceconfigpage.layoutGap : 0
+        y: deviceconfigpage.layoutTopInset
         spacing: 0;
-        width: 100;
-        height: 500;
+        columns: deviceconfigpage.compactLayout ? 4 : 1
+        rows: deviceconfigpage.compactLayout ? 1 : 4
+        width: deviceconfigpage.navigationWidth
+        height: deviceconfigpage.compactLayout ? 40 : 160
         Rectangle{
-            width: 100;
+            width: deviceconfigpage.compactLayout ? coloumndev.width / 4 : coloumndev.width
             height: 40;
             color: "#ffffff"
             Text{
@@ -56,7 +69,7 @@ Page {
             }
         }
         Rectangle{
-            width: 100;
+            width: deviceconfigpage.compactLayout ? coloumndev.width / 4 : coloumndev.width
             height: 40;
             color: "#ffffff"
             Text{
@@ -89,7 +102,7 @@ Page {
             }
         }
         Rectangle{
-            width: 100;
+            width: deviceconfigpage.compactLayout ? coloumndev.width / 4 : coloumndev.width
             height: 40;
             color: "#ffffff"
             Text{
@@ -117,7 +130,7 @@ Page {
             }
         }
         Rectangle{
-            width: 100;
+            width: deviceconfigpage.compactLayout ? coloumndev.width / 4 : coloumndev.width
             height: 40;
             color: "#ffffff"
             Text{
@@ -151,14 +164,14 @@ Page {
         id: pag2_view
         Rectangle {
             id: pag2tangle
-            x: 106
-            y: 154
-            width: 1073
-            height: 618
+            x: deviceconfigpage.layoutContentX
+            y: deviceconfigpage.layoutContentTop
+            width: deviceconfigpage.layoutContentWidth
+            height: deviceconfigpage.layoutContentHeight
             color: "#FFFFFF"
             Rectangle {
                 id: rectanglepag2
-                width: 1066
+                width: parent.width
                 height: 35
                 color: "#f3f7ff"
                 Text {
@@ -213,8 +226,8 @@ Page {
                 id: regionalplanypag2
                 anchors.top:parent.top
                 anchors.topMargin: 35
-                width: 1073
-                height: 587
+                width: parent.width
+                height: parent.height - anchors.topMargin
                 color: "#ffffff"
                 CreatChannelPlanModel {
                     id: mode_newplanList1
@@ -229,18 +242,18 @@ Page {
     }
     Page{
         id: pag3_view
-        x: 106
-        y: 154
-        width: 1073
-        height: 618
+        x: deviceconfigpage.layoutContentX
+        y: deviceconfigpage.layoutContentTop
+        width: deviceconfigpage.layoutContentWidth
+        height: deviceconfigpage.layoutContentHeight
         Rectangle {
             id: allrectanglepag3
-            width: 1073
-            height: 618
+            width: parent.width
+            height: parent.height
             color: "#FFFFFF"
             Rectangle {
                 id: rectanglepag3
-                width: 1066
+                width: parent.width
                 height: 35
                 color: "#f3f7ff"
                 Text {
@@ -327,8 +340,8 @@ Page {
                 id: regionalareap3
                 anchors.top:parent.top
                 anchors.topMargin: 35
-                width: 1073
-                height: 587
+                width: parent.width
+                height: parent.height - anchors.topMargin
                 color: "#ffffff"
                 CreatAlarmRangeModel {
                     id: mode_alarmvalueListp3
@@ -342,14 +355,14 @@ Page {
     }
     Page{
         id: pag4_view
-        x: 106
-        y: 154
-        width: 1073
-        height: 618
+        x: deviceconfigpage.layoutContentX
+        y: deviceconfigpage.layoutContentTop
+        width: deviceconfigpage.layoutContentWidth
+        height: deviceconfigpage.layoutContentHeight
         Rectangle {
             id: allrectanglepag4
-            width: 1073
-            height: 618
+            width: parent.width
+            height: parent.height
             color: "#FFFFFF"
             Text {
                 id: softnamep4
@@ -393,14 +406,14 @@ Page {
         id: pag1_view
         Rectangle {
             id: allrectangle
-            x: 106
-            y: 154
-            width: 1073
-            height: 618
+            x: deviceconfigpage.layoutContentX
+            y: deviceconfigpage.layoutContentTop
+            width: deviceconfigpage.layoutContentWidth
+            height: deviceconfigpage.layoutContentHeight
             color: "#FFFFFF"
             Rectangle {
                 id: rectangle23
-                width: 1066
+                width: parent.width
                 height: 35
                 color: "#f3f7ff"
                 Text {
@@ -455,8 +468,8 @@ Page {
                 id: creatAreaListModellist
                 anchors.top:parent.top
                 anchors.topMargin: 35
-                width: 1073
-                height: 587
+                width: parent.width
+                height: parent.height - anchors.topMargin
                 color: "#ffffff"
                 CreatAreaListModel {
                     id: mode_CreatAreaListModel
@@ -470,9 +483,10 @@ Page {
     }
     Rectangle {
         id: areaconfig_menu_q
-        x: 106
-        y: 101
-        width: 1073
+        x: deviceconfigpage.layoutContentX
+        y: deviceconfigpage.compactLayout ? deviceconfigpage.layoutTopInset + 46
+                                           : deviceconfigpage.layoutTopInset
+        width: deviceconfigpage.layoutContentWidth
         height: 41
         color: "#ffffff"
         border.color: "#f3f7ff"
@@ -495,8 +509,13 @@ Page {
             y: 8
             width: 35
             height: 25
-            text: qsTr("1")
+            text: ""
+            display: AbstractButton.IconOnly
             icon.source: "qrc:/icon/add.png"
+            icon.width: 20
+            icon.height: 20
+            icon.color: "transparent"
+            padding: 0
             onClicked: {
                 if( areaconfig_menu0.text == "区域配置")
                 {
@@ -697,6 +716,3 @@ Page {
             mainWindow.updataquickmodelshowhandle(namestr,delayt,modelid,editorcreat);
     }
 }
-
-
-

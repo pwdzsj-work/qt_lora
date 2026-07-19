@@ -11,14 +11,14 @@ GridView{
     signal editimetasklist(var arealistseril,var taskname);//编辑
     model: ListModel{
     }
-    cellWidth: 260
+    cellWidth: width
     cellHeight: 30
     delegate:numberDelegatetm
     Component{
         id : numberDelegatetm
         Rectangle{
             id :qcall_user
-            width: 260
+            width: timetconmodel.width
             height: 40
             color:"#f3f7ff"
             Text {
@@ -60,8 +60,8 @@ GridView{
                 id: timetaskbntopr
                 anchors.top:parent.top
                 anchors.topMargin: 10
-                anchors.left:parent.left
-                anchors.leftMargin: 205
+                anchors.right: timetaskbntclose.left
+                anchors.rightMargin: 5
                 width: 15
                 height: 15
                 text: ""
@@ -79,8 +79,8 @@ GridView{
                 id: timetaskbntclose
                 anchors.top:parent.top
                 anchors.topMargin: 10
-                anchors.left:parent.left
-                anchors.leftMargin: 225
+                anchors.right: parent.right
+                anchors.rightMargin: 10
                 width: 15
                 height: 15
                 text: ""

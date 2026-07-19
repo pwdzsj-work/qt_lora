@@ -1,8 +1,10 @@
 import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
-Window {
+AdaptiveWindow {
     id: addnewpanWindow
+    designWidth: 504
+    designHeight: 500
     width: 504
     height: 500
     opacity: 1

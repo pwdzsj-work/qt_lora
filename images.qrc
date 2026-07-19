@@ -10,6 +10,8 @@
         <file>icon/Setting.png</file>
         <file>icon/close.png</file>
         <file>icon/narrow.png</file>
+        <file>icon/maximize.svg</file>
+        <file>icon/restore.svg</file>
         <file>icon/login_account.png</file>
         <file>icon/login_password.png</file>
         <file>icon/add.png</file>

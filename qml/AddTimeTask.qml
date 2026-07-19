@@ -2,8 +2,10 @@ import QtQuick 2.12
 import QtQuick.Window 2.12
 import QtQuick.Controls 2.12
 
-Window {
+AdaptiveWindow {
     id: addtimetaskWindow
+    designWidth: 480
+    designHeight: 420
     width: 480
     height: 420
     opacity: 0.9

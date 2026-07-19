@@ -19,7 +19,7 @@ GridView{
     model: ListModel{
         //ListElement{reLiSer_text: "0";areaname_text:"1";devname_text:"2"}
     }
-    cellWidth: 1200
+    cellWidth: width
     cellHeight: 25
     delegate:numberDelegate1
 
@@ -27,7 +27,7 @@ GridView{
         id : numberDelegate1
         Rectangle{
             id :all_user
-            width: 950
+            width: regional_moidu.width
             height: 20
             color:"#ffffff"
             Text {
@@ -74,8 +74,13 @@ GridView{
                 anchors.leftMargin: 840
                 width: 20
                 height: 20
-                text: qsTr("2")
+                text: ""
+                display: AbstractButton.IconOnly
                 icon.source: "qrc:/icon/smal_Info_edit.png"
+                icon.width: 16
+                icon.height: 16
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
                     correctreasendConfigSignal(model.index);//编辑
                 }
@@ -88,8 +93,13 @@ GridView{
                 anchors.leftMargin: 870
                 width: 20
                 height: 20
-                text: qsTr("2")
+                text: ""
+                display: AbstractButton.IconOnly
                  icon.source: "qrc:/icon/smallclose.png"
+                icon.width: 16
+                icon.height: 16
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
                     careasendConfigSignal(model.index);//删除
                 }

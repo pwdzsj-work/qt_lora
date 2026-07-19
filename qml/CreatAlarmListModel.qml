@@ -11,14 +11,14 @@ GridView{
     model: ListModel{
         //ListElement{chserial_text: chserial;alarmcolor:"red";chname_text:chname;voltcurr_text:chvoltcurr;iconsourceopen:miconsourceopen; iconsourceclose:miconsourceclose}
     }
-    cellWidth: 305
+    cellWidth: width
     cellHeight: 55
     delegate:numberDelegatecalarm
     Component{
         id : numberDelegatecalarm
         Rectangle{
             id :creatalarmlistre
-            width: 300
+            width: creatalarmlist_showMode.width
             height: 50
             color:"#f3f7ff"
             Rectangle {
@@ -46,8 +46,13 @@ GridView{
                     anchors.leftMargin: 230
                     width: 20
                     height: 20
-                    text: qsTr("2")
+                    text: ""
+                    display: AbstractButton.IconOnly
                      icon.source: "qrc:/icon/smallclose.png"
+                    icon.width: 16
+                    icon.height: 16
+                    icon.color: "transparent"
+                    padding: 0
                     onClicked: {
                         deletalarmlist(model.index);//删除
                     }

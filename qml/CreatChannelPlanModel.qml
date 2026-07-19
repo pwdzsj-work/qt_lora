@@ -12,14 +12,14 @@ GridView{
     model: ListModel{
      //ListElement{reLiSer_text: "itemser";planname_text:"planname";delaytime_text:"delaytim"}
     }
-    cellWidth: 1200
+    cellWidth: width
     cellHeight: 25
     delegate:numberDelegatepan
     Component{
         id : numberDelegatepan
         Rectangle{
             id :all_user
-            width: 950
+            width: channelplan_view.width
             height: 20
             color:"#f3f7ff"
             Text {
@@ -66,8 +66,13 @@ GridView{
                 anchors.leftMargin: 840
                 width: 20
                 height: 20
-                text: qsTr("2")
+                text: ""
+                display: AbstractButton.IconOnly
                 icon.source: "qrc:/icon/smal_Info_edit.png"
+                icon.width: 16
+                icon.height: 16
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
                 plansendeditConfigSignal(model.index,"edit",plannametext.text);
                 }
@@ -80,8 +85,13 @@ GridView{
                 anchors.leftMargin: 875
                 width: 20
                 height: 20
-                text: qsTr("2")
+                text: ""
+                display: AbstractButton.IconOnly
                 icon.source: "qrc:/icon/smallclose.png"
+                icon.width: 16
+                icon.height: 16
+                icon.color: "transparent"
+                padding: 0
                 onClicked: {
                        plansendConfigSignal(model.index);//删除
                 }

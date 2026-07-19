@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
+        <file>qml/AdaptiveWindow.qml</file>
         <file>qml/AddAlarmValue.qml</file>
         <file>qml/AddNewArea.qml</file>
         <file>qml/AddNewPan.qml</file>
