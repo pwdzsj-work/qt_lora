@@ -16,6 +16,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     cpp/DeviceDataStr.cpp \
+    cpp/lora_online_protocol.cpp \
     cpp/sqlitefun.cpp \
     cpp/user_global_param.cpp \
     cpp/user_tcpserver.cpp \
@@ -43,6 +44,7 @@ FORMS +=
 
 HEADERS += \
     cpp/DeviceDataStr.h \
+    cpp/lora_online_protocol.h \
     cpp/sqlitefun.h \
     cpp/user_global_param.h \
     cpp/user_tcpserver.h

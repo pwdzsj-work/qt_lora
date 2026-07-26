@@ -72,6 +72,7 @@ void user_tcpserver::serversocket_Disconnected()//断开连接
     sqlitefun sqlite;
     sqlitefun *sqlitefunobj = &sqlite;
     QTcpSocket *obj = (QTcpSocket*)sender();
+    loraReceiveBuffers.remove(obj);
     QString toqmlIpstr = obj->QAbstractSocket::peerAddress().toString().remove(0, 7) + "+" + QString:: asprintf("%d",obj->QAbstractSocket::peerPort());
     QString currentdel_id  = sqlitefunobj->findsqldataID("devdata","dev_ip",toqmlIpstr);
     sqlitefunobj->updaterowdata("devdata","dev_linestate","0",currentdel_id.toUInt(nullptr,10));//初始化在线状态
@@ -79,12 +80,36 @@ void user_tcpserver::serversocket_Disconnected()//断开连接
 }
 void user_tcpserver::serversocker_Retrun_Data()
 {
+    QTcpSocket *obj = qobject_cast<QTcpSocket *>(sender());
+    if (!obj)
+        return;
+
+    const QByteArray tcpData = obj->readAll();
+    QByteArray &pending = loraReceiveBuffers[obj];
+    const bool isLoraData = !pending.isEmpty() ||
+                            (!tcpData.isEmpty() &&
+                             static_cast<quint8>(tcpData.at(0)) == 0xA5);
+    if (!isLoraData) {
+        processLegacyData(obj, tcpData);
+        return;
+    }
+
+    pending.append(tcpData);
+    LoraOnlineProtocol::Frame frame;
+    while (LoraOnlineProtocol::takeFrame(pending, &frame)) {
+        LoraOnlineProtocol::OnlineDevice device;
+        if (frame.sequence == loraScanSequence &&
+            LoraOnlineProtocol::decodeOnlineResponse(frame, &device))
+            handleLoraOnline(obj, device);
+    }
+    if (pending.size() > 128)
+        pending.clear();
+}
+
+void user_tcpserver::processLegacyData(QTcpSocket *obj, const QByteArray &TcpReadMsg)
+{
     QString MsgdataRevDivStr;//设备返回数据，经过SDK的API函数处理返回字符串
-    QTcpSocket *obj = (QTcpSocket*)sender();
-    QByteArray TcpReadMsg = obj->readAll();//TCP获取设备原始数据
     quint8 TcpReadMsgToByteBuf[1024];
-    quint8 UniqueID[10];//设备唯一ID
-    QStringList IDList;
     QStringList Datalist;
     quint16 ParRegAddr = 0;//解析后的寄存器地址
     QString ParDatastr;//解析后的数据
@@ -96,7 +121,6 @@ void user_tcpserver::serversocker_Retrun_Data()
     sqlitefun *sqlitefunobj = &sqlite;
     QString sql_macstru = "";
     QString sql_485addr = "";
-    QString sql_kindstr = "";
     QString sql_retrunreslut = "";
     quint8 sql_idvalue = 0;
     QString sql_inits = "";
@@ -125,10 +149,9 @@ void user_tcpserver::serversocker_Retrun_Data()
     QString devtotalcurrstr = "";
     QString closetimestr = "";
     quint16 Tokenuint = 0;
-    if(TcpReadMsg.size() < 25) return;
+    if(TcpReadMsg.size() < 25 || TcpReadMsg.size() > 1024) return;
     //接收数据处理
     memcpy(TcpReadMsgToByteBuf,TcpReadMsg,TcpReadMsg.size());
-    memcpy(UniqueID,&TcpReadMsgToByteBuf[4],10);
     Tokenuint = TcpReadMsgToByteBuf[TcpReadMsg.size() - 6] * 256 + TcpReadMsgToByteBuf[TcpReadMsg.size() - 5];
     //SDK函数声明
     typedef const char* (*Fun_R)(uint8_t* revbuf, uint16_t recvCount);
@@ -150,7 +173,6 @@ void user_tcpserver::serversocker_Retrun_Data()
             QString toqmlIpstr = obj->QAbstractSocket::peerAddress().toString().remove(0, 7) + "+" + QString:: asprintf("%d", obj->QAbstractSocket::peerPort());;
             QString  toqmlmacstr = MsgdataRevDivStr.mid(11,17);
             ParRegAddr = MsgdataRevDivStr.mid(41,4).toUInt(nullptr, 16);
-            IDList = MsgdataRevDivStr.mid(9,29).split("-");
             Datalist = MsgdataRevDivStr.mid(50,MsgdataRevDivStr.length() - 50).split("-");
             sql_macstru = MsgdataRevDivStr.mid(11, 17);//获取MAC地址
             sql_485addr = MsgdataRevDivStr.mid(29, 2);//获取485地址
@@ -358,18 +380,6 @@ void user_tcpserver::serversocker_Retrun_Data()
                     break;
                 case 0x022D: //获取线路状态17-32
                     break;
-                case 0x036C://MAC地址
-                    toqmlcmd = 6;
-                    if((TcpReadMsg[19] & 0xff) == 1) sql_kindstr = "4";
-                    if((TcpReadMsg[19] & 0xff) == 2) sql_kindstr = "8";
-                    if((TcpReadMsg[19] & 0xff) == 3 || (TcpReadMsg[19] & 0xff) == 6) sql_kindstr = "16";
-                    if((TcpReadMsg[19] & 0xff) == 4) sql_kindstr = "32";
-                    for(quint8 ID_i = 0; ID_i < IDList.length(); ID_i ++)
-                    {
-                        DeviceDataStr_obj[sql_idvalue]->Device_ID[ID_i] =  IDList[ID_i].toUInt(nullptr, 16);
-                    }
-                    sqlitefunobj->updaterowdata("devdata","dev_kind",sql_kindstr,sql_idvalue);//更新kindstr数据
-                    break;
                 case 0x0376://软件版本号
                     devidmatosql  = sqlitefunobj->findsqldataID("devdata","dev_mac",toqmlmacstr);
                     if(devidmatosql == "FAIL" || devidmatosql == "NONE") return;
@@ -471,6 +481,112 @@ void user_tcpserver::serversocker_Retrun_Data()
     }
 }
 
+void user_tcpserver::sendLoraScan()
+{
+    sqlitefun sqlite;
+    QMutableHashIterator<QString, quint8> device(loraMissedScans);
+    while (device.hasNext()) {
+        device.next();
+        if (device.value() >= 2) {
+            const QString id =
+                sqlite.findsqldataID("devdata", "dev_mac", device.key());
+            if (id != "FAIL" && id != "NONE")
+                sqlite.updaterowdata("devdata", "dev_linestate", "0",
+                                     id.toUInt());
+            emit deleqmlshowmodel(device.key());
+            device.remove();
+        } else {
+            device.setValue(device.value() + 1);
+        }
+    }
+
+    ++loraScanSequence;
+    if (loraScanSequence == 0)
+        ++loraScanSequence;
+
+    const QByteArray request =
+        LoraOnlineProtocol::makeScanRequest(loraScanSequence, 16, 12);
+    for (quint8 i = 0; i < user_global_param::ClientNum && i < 100; ++i) {
+        QTcpSocket *socket = tcpsocket[i];
+        if (!socket || socket->state() != QAbstractSocket::ConnectedState)
+            continue;
+        socket->write(request);
+        socket->flush();
+    }
+}
+
+void user_tcpserver::handleLoraOnline(
+    QTcpSocket *socket, const LoraOnlineProtocol::OnlineDevice &device)
+{
+    if (!socket || device.deviceType != 0x01 ||
+        device.channelCount == 0 || device.channelCount > 32)
+        return;
+
+    const QString mac = LoraOnlineProtocol::formatMac(device.mac);
+    if (mac.isEmpty())
+        return;
+    loraMissedScans.insert(mac, 0);
+
+    QString peerIp = socket->peerAddress().toString();
+    if (peerIp.startsWith(QStringLiteral("::ffff:")))
+        peerIp.remove(0, 7);
+    const QString endpoint =
+        peerIp + QLatin1Char('+') + QString::number(socket->peerPort());
+    const QString modbusAddress =
+        QStringLiteral("%1").arg(device.modbusAddress, 2, 16,
+                                 QLatin1Char('0')).toUpper();
+
+    sqlitefun sqlite;
+    QString id = sqlite.findsqldataID("devdata", "dev_mac", mac);
+    const bool isNew = id == "FAIL" || id == "NONE";
+    if (isNew) {
+        sqlite.nOIDinsterweizhidata("devdata", "dev_mac", mac);
+        id = sqlite.findsqldataID("devdata", "dev_mac", mac);
+    }
+    if (id == "FAIL" || id == "NONE")
+        return;
+
+    const uint rowValue = id.toUInt();
+    if (rowValue >= 100)
+        return;
+    const quint8 row = static_cast<quint8>(rowValue);
+
+    sqltcpsocket[row] = socket;
+    user_global_param::allClientsMac[row] = mac;
+    sqlite.updaterowdata("devdata", "dev_485adr", modbusAddress, row);
+    sqlite.updaterowdata("devdata", "dev_ip", endpoint, row);
+    sqlite.updaterowdata("devdata", "dev_linestate", "1", row);
+    sqlite.updaterowdata("devdata", "dev_kind",
+                         QString::number(device.channelCount), row);
+    sqlite.updaterowdata(
+        "devdata", "dev_softver",
+        QStringLiteral("%1.%2").arg(device.firmwareMajor)
+                               .arg(device.firmwareMinor),
+        row);
+
+    if (isNew) {
+        QStringList channelNames;
+        QStringList zeroValues;
+        for (quint8 channel = 1; channel <= device.channelCount; ++channel) {
+            channelNames.append(QStringLiteral("CH%1").arg(channel));
+            zeroValues.append(QStringLiteral("0"));
+        }
+        const QString zeros = zeroValues.join(QLatin1Char('#'));
+        sqlite.updaterowdata("devdata", "dev_name", "101", row);
+        sqlite.updaterowdata("devdata", "dev_chname",
+                             channelNames.join(QLatin1Char('#')), row);
+        sqlite.updaterowdata("devdata", "dev_chcurr", zeros, row);
+        sqlite.updaterowdata("devdata", "dev_chvolt", zeros, row);
+        sqlite.updaterowdata("devdata", "dev_chswstate1", zeros, row);
+        sqlite.updaterowdata("devdata", "dev_inputvolt", "---", row);
+        sqlite.updaterowdata("devdata", "dev_temp", "---", row);
+        sqlite.updaterowdata("devdata", "dev_totalcurr", "---", row);
+    }
+
+    emit QmlModelShowData(0, peerIp, mac,
+                          QStringList{QStringLiteral("---")}, 0);
+}
+
 void user_tcpserver::timerUpDate()//定时发送数据
 {
     static quint8 temp_i = 0;
@@ -567,7 +683,7 @@ void user_tcpserver::timerUpDate()//定时发送数据
         {
             temp_i ++;
             harddatasendendfalg = 1;
-            serversocket_Send_ReadData("NONE", 0x036C, 0x03, 0x04,0x0334);
+            sendLoraScan();
 
 
         }
@@ -674,7 +790,7 @@ void user_tcpserver::serversocket_Send_ReturnData(QString  qslmac, quint16 RegAd
     QLibrary mylib("universalprotocalinter.dll");   //声明所用到的dll文件
     for(quint8 iu = 0; iu < 99; iu ++)
     {
-        if(user_global_param::allClientsMac[iu] == qslmac || RegAddr == 0x036c)
+        if(user_global_param::allClientsMac[iu] == qslmac)
         {
             macokflag = 1;
         }
@@ -683,34 +799,12 @@ void user_tcpserver::serversocket_Send_ReturnData(QString  qslmac, quint16 RegAd
     {
         return;
     }
-    if(RegAddr != 0x036c)
-    {
-        listmac = qslmac.split("-");
-        if(listmac.length() == 0)return;
-        Sqtidstr = sqlitefunobj->findsqldataID("devdata","dev_mac",qslmac);
-        if(Sqtidstr == "FAIL" || Sqtidstr == "NONE") return;
-        Modbusaddr = sqlitefunobj->findsqldata("devdata","dev_485adr",Sqtidstr.toUInt(nullptr, 10));
-        if(Modbusaddr == "FAIL" || Modbusaddr == "NONE") return;
-    }
-    else
-    {
-        if(qslmac == "FAIL" || qslmac == "NONE")
-        {
-            qslmac = "0-0-0-0-0-0";
-            Modbusaddr = "0";
-            listmac =  qslmac.split("-");
-        }
-        else
-        {
-            listmac =  qslmac.split("-");
-            Sqtidstr = sqlitefunobj->findsqldataID("devdata","dev_mac",qslmac);
-            if(Sqtidstr == "FAIL" || Sqtidstr == "NONE") return;
-            Modbusaddr = sqlitefunobj->findsqldata("devdata","dev_485adr",Sqtidstr.toUInt(nullptr, 10));
-            if(Modbusaddr == "FAIL" || Modbusaddr == "NONE") return;
-
-        }
-
-    }
+    listmac = qslmac.split("-");
+    if(listmac.length() == 0)return;
+    Sqtidstr = sqlitefunobj->findsqldataID("devdata","dev_mac",qslmac);
+    if(Sqtidstr == "FAIL" || Sqtidstr == "NONE") return;
+    Modbusaddr = sqlitefunobj->findsqldata("devdata","dev_485adr",Sqtidstr.toUInt(nullptr, 10));
+    if(Modbusaddr == "FAIL" || Modbusaddr == "NONE") return;
     if (mylib.load())              //判断是否正确加载
     {
         Fun BY_ReturnDataToDrive = (Fun)mylib.resolve("BY_ReturnDataToDrive");    //援引 BY_WriteRegValue() 函数
@@ -732,19 +826,8 @@ void user_tcpserver::serversocket_Send_ReturnData(QString  qslmac, quint16 RegAd
             {
                 Block_tcpdata[i] = list[i].toUInt(nullptr, 16);
             }
-            if(RegAddr == 0x036C && qslmac == "0-0-0-0-0-0")
-            {
-                for(quint8 i = 0; i  < user_global_param::ClientNum; i ++)
-                {
-                    tcpsocket[i]->write(Block_tcpdata);
-                    tcpsocket[i]->flush();
-                }
-            }
-            else
-            {
-                sqltcpsocket[Sqtidstr.toUInt(nullptr, 10)]->write(Block_tcpdata);
-                sqltcpsocket[Sqtidstr.toUInt(nullptr, 10)]->flush();
-            }
+            sqltcpsocket[Sqtidstr.toUInt(nullptr, 10)]->write(Block_tcpdata);
+            sqltcpsocket[Sqtidstr.toUInt(nullptr, 10)]->flush();
 
         }
     }
@@ -765,7 +848,7 @@ void user_tcpserver::serversocket_Send_ReadData(QString  qslmac, quint16 RegAddr
     QLibrary mylib("universalprotocalinter.dll");   //声明所用到的dll文件
     for(quint8 iu = 0; iu < 99; iu ++)
     {
-        if(user_global_param::allClientsMac[iu] == qslmac || RegAddr == 0x036c)
+        if(user_global_param::allClientsMac[iu] == qslmac)
         {
             macokflag = 1;
         }
@@ -774,34 +857,12 @@ void user_tcpserver::serversocket_Send_ReadData(QString  qslmac, quint16 RegAddr
     {
         return;
     }
-    if(RegAddr != 0x036c)
-    {
-        listmac = qslmac.split("-");
-        if(listmac.length() == 0)return;
-        Sqtidstr = sqlitefunobj->findsqldataID("devdata","dev_mac",qslmac);
-        if(Sqtidstr == "FAIL" || Sqtidstr == "NONE") return;
-        Modbusaddr = sqlitefunobj->findsqldata("devdata","dev_485adr",Sqtidstr.toUInt(nullptr, 10));
-        if(Modbusaddr == "FAIL" || Modbusaddr == "NONE") return;
-    }
-    else
-    {
-        if(qslmac == "FAIL" || qslmac == "NONE")
-        {
-            qslmac = "0-0-0-0-0-0";
-            Modbusaddr = "0";
-            listmac =  qslmac.split("-");
-        }
-        else
-        {
-            listmac =  qslmac.split("-");
-            Sqtidstr = sqlitefunobj->findsqldataID("devdata","dev_mac",qslmac);
-            if(Sqtidstr == "FAIL" || Sqtidstr == "NONE") return;
-            Modbusaddr = sqlitefunobj->findsqldata("devdata","dev_485adr",Sqtidstr.toUInt(nullptr, 10));
-            if(Modbusaddr == "FAIL" || Modbusaddr == "NONE") return;
-
-        }
-
-    }
+    listmac = qslmac.split("-");
+    if(listmac.length() == 0)return;
+    Sqtidstr = sqlitefunobj->findsqldataID("devdata","dev_mac",qslmac);
+    if(Sqtidstr == "FAIL" || Sqtidstr == "NONE") return;
+    Modbusaddr = sqlitefunobj->findsqldata("devdata","dev_485adr",Sqtidstr.toUInt(nullptr, 10));
+    if(Modbusaddr == "FAIL" || Modbusaddr == "NONE") return;
     if (mylib.load())              //判断是否正确加载
     {
         Fun BY_ReadRegValue = (Fun)mylib.resolve("BY_ReadRegValue");    //援引 BY_WriteRegValue() 函数
@@ -823,19 +884,8 @@ void user_tcpserver::serversocket_Send_ReadData(QString  qslmac, quint16 RegAddr
             {
                 Block_tcpdata[i] = list[i].toUInt(nullptr, 16);
             }
-            if(RegAddr == 0x036C && qslmac == "0-0-0-0-0-0")
-            {
-                for(quint8 i = 0; i  < user_global_param::ClientNum; i ++)
-                {
-                    tcpsocket[i]->write(Block_tcpdata);
-                    tcpsocket[i]->flush();
-                }
-            }
-            else
-            {
-                sqltcpsocket[Sqtidstr.toUInt(nullptr, 10)]->write(Block_tcpdata);
-                sqltcpsocket[Sqtidstr.toUInt(nullptr, 10)]->flush();
-            }
+            sqltcpsocket[Sqtidstr.toUInt(nullptr, 10)]->write(Block_tcpdata);
+            sqltcpsocket[Sqtidstr.toUInt(nullptr, 10)]->flush();
 
         }
     }

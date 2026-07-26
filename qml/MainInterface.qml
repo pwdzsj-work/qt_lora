@@ -559,12 +559,17 @@ function chargequickcontrolstateshow(index,swstate){
     }
 
 }
-    function deletemodeldata(ipstr)//删除设备
+    function deletemodeldata(deviceKey)//删除设备
     {
-        var idstr = sqlitefun_obj.findsqldataID("devdata","dev_ip",ipstr)
-        var macstr = sqlitefun_obj.findsqldata("devdata","dev_mac",Number(idstr))
+        var idstr = sqlitefun_obj.findsqldataID("devdata","dev_mac",deviceKey)
+        var macstr = deviceKey
+        if(idstr === "FAIL" || idstr === "NONE")
+        {
+            idstr = sqlitefun_obj.findsqldataID("devdata","dev_ip",deviceKey)
+            macstr = sqlitefun_obj.findsqldata("devdata","dev_mac",Number(idstr))
+        }
         if(idstr === "FAIL" || idstr === "NONE") return;
-         if(macstr === "FAIL" || macstr === "NONE") return;
+        if(macstr === "FAIL" || macstr === "NONE") return;
       //  sqlitefun_obj.deleterow("devdata",Number(idstr));
         for(var ijk = 0; ijk < totalModel_id.count; ijk ++)
         {

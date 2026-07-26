@@ -6,8 +6,10 @@
 #include <QTime>
 #include <QThread>
 #include <QString>
+#include <QHash>
 #include "user_global_param.h"
 #include "DeviceDataStr.h"
+#include "lora_online_protocol.h"
 class user_tcpserver: public QObject
 {
         Q_OBJECT
@@ -47,6 +49,15 @@ private slots:
     void serversocker_Retrun_Data();
     void timerUpDate();
   //  void timertaskcontrol();
+private:
+    void processLegacyData(QTcpSocket *socket, const QByteArray &data);
+    void sendLoraScan();
+    void handleLoraOnline(QTcpSocket *socket,
+                          const LoraOnlineProtocol::OnlineDevice &device);
+
+    QHash<QTcpSocket *, QByteArray> loraReceiveBuffers;
+    QHash<QString, quint8> loraMissedScans;
+    quint16 loraScanSequence = 0;
 };
 
 #endif // USER_TCPSERVER_H
