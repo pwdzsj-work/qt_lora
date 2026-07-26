@@ -8,7 +8,7 @@ AdaptiveWindow {
     width: 504
     height: 480
     opacity: 1
-    title: qsTr("电力优化管控系统")
+    title: qsTr("LoRa继电器智控系统")
     signal esendconfigSignal();
     property int i :0
 

@@ -8,7 +8,7 @@ AdaptiveWindow {
     width: 504
     height: 500
     opacity: 1
-    title: qsTr("电力优化管控系统")
+    title: qsTr("LoRa继电器智控系统")
     visible: false
     modality: Qt.ApplicationModal
     property int i :0

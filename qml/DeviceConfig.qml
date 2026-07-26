@@ -372,7 +372,7 @@ Page {
                 anchors.leftMargin: 20
                 width: 46
                 height: 18
-                text:qsTr("软件名称： 电力优化管控系统")
+                text:qsTr("软件名称： LoRa继电器智控系统")
                 color: "#14203f"
                 font.pixelSize: 16
             }
