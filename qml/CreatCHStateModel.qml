@@ -4,58 +4,65 @@ import QtQuick.Controls 2.12
 
 GridView{
     id: measure_showMode
-    anchors.fill:parent
-    anchors.margins:200
     clip:true
+    interactive: contentHeight > height
+    property int minimumCellWidth: 245
+    property int columnCount: Math.max(
+                                  1,
+                                  Math.min(model.count > 0 ? model.count : 1,
+                                           Math.floor(width / minimumCellWidth)))
     model: ListModel{
  //ListElement{chserial_text: chserial;alarmcolor:"red";chname_text:chname;voltcurr_text:chvoltcurr;iconsourceopen:miconsourceopen; iconsourceclose:miconsourceclose}
     }
-    cellWidth: 250
-    cellHeight: 65
+    cellWidth: width / columnCount
+    cellHeight: 64
     delegate:numberDelegate
     Component{
         id : numberDelegate
+        Item {
+            width: GridView.view.cellWidth
+            height: GridView.view.cellHeight
+
         Rectangle{
-            id :all_user
-            width: 240
-            height: 55
-            color:"#f3f7ff"
+            id: all_user
+            anchors.fill: parent
+            anchors.margins: 4
+            radius: 5
+            color: relaystate ? "#eef9f1" : "#f3f5f8"
+            border.width: 1
+            border.color: relaystate ? "#79c98d" : "#d4d9e1"
             Rectangle {
              id: chstateled
-             radius: 6
+             radius: 5
              width: 10
              height: 10
-             anchors.top:parent.top
-             anchors.topMargin:2
              anchors.left:parent.left
-             anchors.leftMargin:2
-             color: alarmcolor
+             anchors.leftMargin:10
+             anchors.top: parent.top
+             anchors.topMargin: 11
+             color: relaystate ? alarmcolor : "#9aa3af"
             }
             Text {
                 id: chstatenum
-                anchors.top:parent.top
-                anchors.topMargin: 15
-                anchors.left:parent.left
-                anchors.leftMargin: 5
-                width: 5
-                height: 5
-                text: chserial_text
+                anchors.left: chstateled.right
+                anchors.leftMargin: 7
+                anchors.verticalCenter: chstateled.verticalCenter
+                text: "CH" + chserial_text
                 font.family: "宋体"
-                font.pointSize: 8
-                       color: "green"
+                font.pixelSize: 12
+                color: relaystate ? "#238a42" : "#66717f"
             }
 
             TextInput {
                 id: device_Info_CH_Name
-                anchors.top:parent.top
-                anchors.topMargin: 5
-                anchors.left:chstatenum.right
-                anchors.leftMargin: 10
-                width: 80
+                anchors.left: chstatenum.right
+                anchors.leftMargin: 9
+                anchors.verticalCenter: chstatenum.verticalCenter
+                width: Math.max(60, devicechopen.x - x - 8)
                 height: 20
                 text: chname_text
                 font.family: "宋体"
-                font.pointSize: 11
+                font.pixelSize: 14
                 readOnly: textinpuvalue
                 selectByMouse: true
                 onTextEdited:{
@@ -64,26 +71,25 @@ GridView{
             }
             Text {
                 id: device_CH_V_I
-                anchors.top:parent.top
-                anchors.topMargin: 30
-                anchors.left:parent.left
-                anchors.leftMargin: 20
-                width: 83
+                anchors.left: parent.left
+                anchors.leftMargin: 27
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 7
+                width: devicechopen.x - x - 8
                 height: 20
                 text: voltcurr_text
                 font.family: "宋体"
-                font.pointSize: 13
-
+                font.pixelSize: 14
+                color: "#26364d"
             }
             ToolButton {
                 id: devicechopen
-                anchors.top:parent.top
-                anchors.topMargin: 15
-                anchors.left:parent.left
-                anchors.leftMargin: 160
-                width: 30
-                height: 20
-                enabled: boolbntopench
+                anchors.right: devicechclose.left
+                anchors.rightMargin: 7
+                anchors.verticalCenter: parent.verticalCenter
+                width: 34
+                height: 24
+                enabled: true
                 text: ""
                 display: AbstractButton.IconOnly
                 icon.source: iconsourceopen
@@ -92,6 +98,8 @@ GridView{
                 icon.color: "transparent"
                 padding: 0
                 onClicked: {
+                        relaystate = true
+                        alarmcolor = "#2ebc59"
                         iconsourceopen = "qrc:/icon/Info_OpenE.png"
                         iconsourceclose = "qrc:/icon/Info_CloseD.png"
                 }
@@ -100,13 +108,12 @@ GridView{
 
             ToolButton {
                 id: devicechclose
-                anchors.top:parent.top
-                anchors.topMargin: 15
-                anchors.left:parent.left
-                anchors.leftMargin: 200
-                width: 30
-                height: 20
-                enabled: boolbntclosech
+                anchors.right: parent.right
+                anchors.rightMargin: 10
+                anchors.verticalCenter: parent.verticalCenter
+                width: 34
+                height: 24
+                enabled: true
                 text: ""
                 display: AbstractButton.IconOnly
                 icon.source: iconsourceclose
@@ -115,10 +122,12 @@ GridView{
                 icon.color: "transparent"
                 padding: 0
                 onClicked: {
+                        relaystate = false
                         iconsourceclose = "qrc:/icon/Info_CloseE.png"
                         iconsourceopen = "qrc:/icon/Info_OpenD.png"
                 }
             }
+        }
         }
     }
 
@@ -144,17 +153,27 @@ GridView{
          }
          if(chswstate === 1)
          {
+             ledcolor = "#2ebc59"
              miconsourceopen = "qrc:/icon/Info_OpenE.png"
              miconsourceclose = "qrc:/icon/Info_CloseD.png"
          }
          else
          {
-
+             ledcolor = "#9aa3af"
              miconsourceclose = "qrc:/icon/Info_CloseE.png"
              miconsourceopen = "qrc:/icon/Info_OpenD.png"
          }
          chserialstr = chserial.toString();
-        measure_showMode.model.append({chserial_text: chserialstr,alarmcolor:ledcolor,chname_text:chname,voltcurr_text:chvoltcurr,iconsourceopen:miconsourceopen, iconsourceclose:miconsourceclose,textinpuvalue:true,})
+        measure_showMode.model.append({
+            chserial_text: chserialstr,
+            alarmcolor: ledcolor,
+            relaystate: chswstate === 1,
+            chname_text: chname,
+            voltcurr_text: chvoltcurr,
+            iconsourceopen: miconsourceopen,
+            iconsourceclose: miconsourceclose,
+            textinpuvalue: true
+        })
     }
 }
 

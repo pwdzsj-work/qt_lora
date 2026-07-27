@@ -34,6 +34,10 @@ public:
                                         qint32 baudRate = 9600);
     Q_INVOKABLE void closeLoraSerialPort();
     Q_INVOKABLE QString currentLoraSerialPort() const;
+    Q_INVOKABLE bool setLoraAnalogInputMode(const QString &mac,
+                                            int channel,
+                                            bool currentMode);
+    Q_INVOKABLE bool synchronizeLoraTerminalClock(const QString &mac);
   //  Q_INVOKABLE QString user_tcpserver::qmlsenddatatodev();
    // void TcpServerStopListen();//停止监听
     QTcpServer* tcpserver;
@@ -53,6 +57,7 @@ signals:
     void cppsigneltoqmlhandle(QString macstr,quint16 regaddr,quint8 cmd,quint8 regnum,QString value,quint16 token);
     void chargequiccontrolstate(QString inst,QString statesw);
     void loraSerialStatusChanged(bool opened, QString message);
+    void loraClockSyncFinished(QString mac, bool success, QString message);
 private slots:
     void user_server_New_Connect();
     void serversocker_Retrun_Data();
@@ -71,13 +76,17 @@ private:
         None,
         Discovery,
         ReadInputs,
-        ReadRelayStates
+        ReadRelayStates,
+        WriteAnalogMode,
+        WriteClock
     };
 
     void processLegacyData(QTcpSocket *socket, const QByteArray &data);
     bool processLoraModbusData(QIODevice *transport, const QByteArray &data);
     void sendNextLoraDiscovery();
     void pollNextLoraTerminal();
+    bool sendPendingLoraAnalogMode();
+    bool sendPendingLoraClock();
     void handleLoraDiscovered(QIODevice *transport,
                               const LoraModbusProtocol::ServerInfo &server);
     void handleLoraPollResponse(const QString &mac,
@@ -105,6 +114,12 @@ private:
     int loraRescanCountdown = 0;
     bool loraDiscoveryActive = true;
     bool loraDiscoveryTurn = true;
+    QString loraPendingModeMac;
+    int loraPendingModeChannel = -1;
+    bool loraPendingCurrentMode = false;
+    QString loraPendingClockMac;
+    QVector<quint16> loraPendingClockValues;
+    int loraPendingClockAttempts = 0;
     LoraRequestKind loraRequestKind = LoraRequestKind::None;
 };
 

@@ -13,6 +13,15 @@ Page {
     readonly property real infoColumnWidth: Math.max(220, (width - 20) / (compactLayout ? 2 : 3))
     property StackView stack: null
     signal sendMainInterfaceSignal(var mac_str);
+
+    function updateRelayStates(devicemac, relayStates) {
+        infomain_rec.updateRelayStates(devicemac, relayStates)
+    }
+
+    function updateTerminalSignals(devicemac, signalValues) {
+        infomain_rec.updateTerminalSignals(devicemac, signalValues)
+    }
+
     Rectangle {
         id : infomain_rec
         anchors.left: parent.left
@@ -314,6 +323,7 @@ Page {
         }
         Text {
             id: device_name_s11
+            visible: false
             anchors.left:parent.left
             anchors.leftMargin: 10
             anchors.top:parent.top
@@ -338,90 +348,78 @@ Page {
             font.pointSize: 10
         }
 
-        MouseArea { //为窗口添加鼠标事件
-            id:mouseidbj
-            anchors.left:parent.left
-            anchors.right: parent.right
-            anchors.rightMargin: 20
-            anchors.top:parent.top
-            anchors.topMargin: 200
-            width: 59
-            height: 28
-            onPressed: { //接收鼠标按下事件
-                for(var i = 0; i < totalch_id.model.count; i ++)
-                {
-                    totalch_id.model.get(i).textinpuvalue = false
-                    totalch_id.model.get(i).closetimepro = false
-                    totalch_id.model.get(i).boolbntopench = true
-                    totalch_id.model.get(i).boolbntclosech = true
-                }
-            }
-            Text {
-                id: device_name_s13
-                anchors.fill: parent
-                text: qsTr("编辑")
-                font.family: "宋体"
-                font.pointSize: 21
-            }
-        }
-        ToolButton {
-            id: toolButton
-            anchors.right: parent.right
-            anchors.rightMargin: 88
-            anchors.top:parent.top
-            anchors.topMargin: 205
-            width: 22
-            height: 22
-            text: ""
-            display: AbstractButton.IconOnly
-            icon.source: "qrc:/icon/Info_EditCopy.png"
-            icon.width: 18
-            icon.height: 18
-            icon.color: "transparent"
-            padding: 0
-            onClicked: {
-                for(var i = 0; i < totalch_id.model.count; i ++)
-                {
-                    totalch_id.model.get(i).textinpuvalue = false
-                    totalch_id.model.get(i).closetimepro = false
-
-                    totalch_id.model.get(i).boolbntopench = true
-                    totalch_id.model.get(i).boolbntclosech = true
-                }
-
-            }
-        }
         Rectangle {
             id: rectangle
             anchors.left:parent.left
             anchors.leftMargin: 10
             anchors.top:parent.top
-            anchors.topMargin: 230
+            anchors.topMargin: 195
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.rightMargin: 10
             anchors.bottomMargin: 26
             color: "#ffffff"
+            Rectangle {
+                id: channelPanel
+                x: 18
+                y: 0
+                width: parent.width - 36
+                height: signalMonitorPanel.visible ? 108
+                                                   : parent.height - 18
+                color: "#f8faff"
+                radius: 6
+                border.color: "#cbd5e5"
+                border.width: 1
+                clip: true
+
+                Text {
+                    id: channelPanelTitle
+                    anchors.left: parent.left
+                    anchors.leftMargin: 14
+                    anchors.top: parent.top
+                    anchors.topMargin: 8
+                    text: qsTr("电源通道")
+                    color: "#26364d"
+                    font.pixelSize: 18
+                    font.bold: true
+                }
+            }
             CreatCHStateModel {
                 id: totalch_id;
-                anchors.bottomMargin: 66
-                anchors.fill: parent
-                anchors.centerIn: parent
-                anchors.margins: 18
+                parent: channelPanel
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: channelPanelTitle.bottom
+                anchors.bottom: parent.bottom
+                anchors.leftMargin: 6
+                anchors.rightMargin: 6
+                anchors.topMargin: 4
+                anchors.bottomMargin: 6
+            }
+            RelaySignalPanel {
+                id: signalMonitorPanel
+                visible: totalch_id.model.count === 4
+                x: 18
+                y: channelPanel.y + channelPanel.height + 10
+                width: parent.width - 36
+                height: Math.min(230, parent.height - y - 18)
+                onAnalogModeChangeRequested: function(channel, currentMode) {
+                    user_tcpserver_qmlobj.setLoraAnalogInputMode(
+                                device_mac_s1.text, channel, currentMode)
+                }
             }
             ToolButton {
                 id: savebtn
-                anchors.right: parent.right
-                anchors.rightMargin: 20
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: 18
-                width: 56
-                height: 36
+                parent: infomain_rec
+                x: devname_bnt.x + devname_bnt.width + 6
+                y: device_Info_Name.y
+                width: 48
+                height: 23
                 text: ""
                 display: AbstractButton.IconOnly
                 icon.source: "qrc:/icon/Info_Save.png"
-                icon.width: 48
-                icon.height: 30
+                icon.width: 44
+                icon.height: 21
                 icon.color: "transparent"
                 padding: 0
                 onClicked: {
@@ -437,8 +435,6 @@ Page {
                     for(var i = 0; i < totalch_id.model.count; i ++)//详细信息数据保存到数据库
                     {
                         totalch_id.model.get(i).textinpuvalue = true
-                        totalch_id.model.get(i).closetimepro = true
-                        totalch_id.model.get(i).boolbntopench = false
                         delayclosetimeu += totalch_id.model.get(i).closedelaytime_text
                         chnamestr += totalch_id.model.get(i).chname_text
                         if(i !== totalch_id.model.count - 1)
@@ -629,6 +625,8 @@ Page {
             for (var i = 0; i < count; ++i) {
                 var relayOn = Number(relayStates[i]) === 1
                 totalch_id.model.set(i, {
+                    relaystate: relayOn,
+                    alarmcolor: relayOn ? "#2ebc59" : "#9aa3af",
                     iconsourceopen: relayOn
                                     ? "qrc:/icon/Info_OpenE.png"
                                     : "qrc:/icon/Info_OpenD.png",
@@ -638,11 +636,62 @@ Page {
                 })
             }
         }
+        Button {
+            id: clockSyncButton
+            anchors.left: parent.left
+            anchors.leftMargin: 306
+            anchors.top: parent.top
+            anchors.topMargin: 82
+            width: 62
+            height: 23
+            text: qsTr("校时")
+            font.pixelSize: 13
+            padding: 2
+            onClicked: {
+                if (user_tcpserver_qmlobj.synchronizeLoraTerminalClock(
+                            device_mac_s1.text)) {
+                    enabled = false
+                    clockSyncState.text = qsTr("校时中…")
+                    clockSyncState.color = "#356fbd"
+                } else {
+                    clockSyncState.text = qsTr("终端未在线")
+                    clockSyncState.color = "#b02a37"
+                }
+            }
+        }
+        Text {
+            id: clockSyncState
+            anchors.left: clockSyncButton.right
+            anchors.leftMargin: 7
+            anchors.verticalCenter: clockSyncButton.verticalCenter
+            width: 72
+            text: ""
+            font.pixelSize: 12
+            color: "#356fbd"
+            elide: Text.ElideRight
+        }
+
+        function updateTerminalSignals(devicemac, signalValues) {
+            if (device_mac_s1.text !== devicemac)
+                return
+            signalMonitorPanel.updateSignals(signalValues)
+        }
 
     }
 
     MsgDialog {
         id: msgDialog
         tipText: qsTr("QML  debugging is enabled. Only use this in a safe eenvironment.")
+    }
+
+    Connections {
+        target: user_tcpserver_qmlobj
+        function onLoraClockSyncFinished(mac, success, message) {
+            if (mac !== device_mac_s1.text)
+                return
+            clockSyncButton.enabled = true
+            clockSyncState.text = message
+            clockSyncState.color = success ? "#198754" : "#b02a37"
+        }
     }
 }

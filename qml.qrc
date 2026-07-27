@@ -24,5 +24,6 @@
         <file>qml/CppSingletoQml.qml</file>
         <file>qml/Creatplanchbox.qml</file>
         <file>qml/RectangleCheckbox.qml</file>
+        <file>qml/RelaySignalPanel.qml</file>
     </qresource>
 </RCC>

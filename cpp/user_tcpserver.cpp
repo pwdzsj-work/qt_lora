@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QSerialPortInfo>
+#include <QDateTime>
 #include <qjsonarray.h>
 #include <QString>
 #include <QSqlDatabase>
@@ -101,6 +102,48 @@ void user_tcpserver::closeLoraSerialPort()
 QString user_tcpserver::currentLoraSerialPort() const
 {
     return loraSerialPort->isOpen() ? loraSerialPort->portName() : QString();
+}
+
+bool user_tcpserver::setLoraAnalogInputMode(const QString &mac,
+                                            int channel,
+                                            bool currentMode)
+{
+    if (channel < 1 || channel > 4 || !loraTerminals.contains(mac) ||
+        loraRequestKind == LoraRequestKind::WriteAnalogMode)
+        return false;
+    const LoraTerminalEndpoint terminal = loraTerminals.value(mac);
+    if (!loraTransportReady(terminal.transport))
+        return false;
+
+    loraPendingModeMac = mac;
+    loraPendingModeChannel = channel;
+    loraPendingCurrentMode = currentMode;
+    return true;
+}
+
+bool user_tcpserver::synchronizeLoraTerminalClock(const QString &mac)
+{
+    if (!loraTerminals.contains(mac) || !loraPendingClockMac.isEmpty() ||
+        loraRequestKind == LoraRequestKind::WriteClock)
+        return false;
+    const LoraTerminalEndpoint terminal = loraTerminals.value(mac);
+    if (!loraTransportReady(terminal.transport))
+        return false;
+
+    const QDateTime now = QDateTime::currentDateTime();
+    const QDate date = now.date();
+    const QTime time = now.time();
+    loraPendingClockMac = mac;
+    loraPendingClockValues = {
+        static_cast<quint16>(date.year()),
+        static_cast<quint16>(date.month()),
+        static_cast<quint16>(date.day()),
+        static_cast<quint16>(time.hour()),
+        static_cast<quint16>(time.minute()),
+        static_cast<quint16>(time.second())
+    };
+    loraPendingClockAttempts = 0;
+    return true;
 }
 
 void user_tcpserver::loraSerialReadyRead()
@@ -714,6 +757,48 @@ bool user_tcpserver::processLoraModbusData(QIODevice *transport,
         return true;
     }
 
+    if (loraRequestKind == LoraRequestKind::WriteAnalogMode) {
+        const quint16 reg =
+            LoraModbusProtocol::AnalogModeRegisterStart +
+            static_cast<quint16>(loraPendingModeChannel - 1);
+        const quint16 value = loraPendingCurrentMode ? 1U : 0U;
+        if (!LoraModbusProtocol::takeWriteSingleRegisterResponse(
+                buffer, loraPollingAddress, reg, value, &exceptionCode))
+            return true;
+
+        loraRequestKind = LoraRequestKind::None;
+        loraPollingTransport = nullptr;
+        loraPollingMac.clear();
+        if (exceptionCode == 0) {
+            loraPendingModeMac.clear();
+            loraPendingModeChannel = -1;
+        }
+        return true;
+    }
+
+    if (loraRequestKind == LoraRequestKind::WriteClock) {
+        if (!LoraModbusProtocol::takeWriteMultipleRegistersResponse(
+                buffer, loraPollingAddress,
+                LoraModbusProtocol::ClockRegisterStart,
+                LoraModbusProtocol::ClockRegisterCount, &exceptionCode))
+            return true;
+
+        const QString mac = loraPendingClockMac;
+        loraRequestKind = LoraRequestKind::None;
+        loraPollingTransport = nullptr;
+        loraPollingMac.clear();
+        const bool success = exceptionCode == 0;
+        emit loraClockSyncFinished(
+            mac, success,
+            success ? QStringLiteral("校时成功")
+                    : QStringLiteral("校时失败：Modbus异常码 %1")
+                          .arg(exceptionCode));
+        loraPendingClockMac.clear();
+        loraPendingClockValues.clear();
+        loraPendingClockAttempts = 0;
+        return true;
+    }
+
     if (loraRequestKind == LoraRequestKind::ReadRelayStates) {
         quint8 relayMask = 0;
         if (!LoraModbusProtocol::takeReadRelayStatesResponse(
@@ -780,6 +865,74 @@ void user_tcpserver::pollNextLoraTerminal()
     }
 }
 
+bool user_tcpserver::sendPendingLoraAnalogMode()
+{
+    if (loraPendingModeMac.isEmpty() ||
+        loraPendingModeChannel < 1 || loraPendingModeChannel > 4)
+        return false;
+    if (!loraTerminals.contains(loraPendingModeMac)) {
+        loraPendingModeMac.clear();
+        loraPendingModeChannel = -1;
+        return false;
+    }
+
+    const LoraTerminalEndpoint terminal =
+        loraTerminals.value(loraPendingModeMac);
+    if (!loraTransportReady(terminal.transport))
+        return false;
+
+    loraPollingMac = loraPendingModeMac;
+    loraPollingTransport = terminal.transport;
+    loraPollingAddress = terminal.modbusAddress;
+    loraRequestKind = LoraRequestKind::WriteAnalogMode;
+    loraModbusBuffers.remove(terminal.transport);
+
+    const quint16 reg =
+        LoraModbusProtocol::AnalogModeRegisterStart +
+        static_cast<quint16>(loraPendingModeChannel - 1);
+    writeLoraFrame(
+        terminal.transport,
+        LoraModbusProtocol::makeWriteSingleRegister(
+            terminal.modbusAddress, reg,
+            loraPendingCurrentMode ? 1U : 0U));
+    return true;
+}
+
+bool user_tcpserver::sendPendingLoraClock()
+{
+    if (loraPendingClockMac.isEmpty() ||
+        loraPendingClockValues.size() !=
+            LoraModbusProtocol::ClockRegisterCount)
+        return false;
+    if (!loraTerminals.contains(loraPendingClockMac)) {
+        emit loraClockSyncFinished(loraPendingClockMac, false,
+                                   QStringLiteral("校时失败：终端已离线"));
+        loraPendingClockMac.clear();
+        loraPendingClockValues.clear();
+        loraPendingClockAttempts = 0;
+        return false;
+    }
+
+    const LoraTerminalEndpoint terminal =
+        loraTerminals.value(loraPendingClockMac);
+    if (!loraTransportReady(terminal.transport))
+        return false;
+
+    loraPollingMac = loraPendingClockMac;
+    loraPollingTransport = terminal.transport;
+    loraPollingAddress = terminal.modbusAddress;
+    loraRequestKind = LoraRequestKind::WriteClock;
+    loraModbusBuffers.remove(terminal.transport);
+    ++loraPendingClockAttempts;
+    writeLoraFrame(
+        terminal.transport,
+        LoraModbusProtocol::makeWriteMultipleRegisters(
+            terminal.modbusAddress,
+            LoraModbusProtocol::ClockRegisterStart,
+            loraPendingClockValues));
+    return true;
+}
+
 void user_tcpserver::sendNextLoraDiscovery()
 {
     QList<QIODevice *> gateways;
@@ -825,6 +978,17 @@ void user_tcpserver::setLoraTerminalOffline(const QString &mac)
                              static_cast<quint8>(id.toUInt()));
     loraTerminals.remove(mac);
     loraPollFailures.remove(mac);
+    if (loraPendingModeMac == mac) {
+        loraPendingModeMac.clear();
+        loraPendingModeChannel = -1;
+    }
+    if (loraPendingClockMac == mac) {
+        emit loraClockSyncFinished(mac, false,
+                                   QStringLiteral("校时失败：终端已离线"));
+        loraPendingClockMac.clear();
+        loraPendingClockValues.clear();
+        loraPendingClockAttempts = 0;
+    }
     emit deleqmlshowmodel(mac);
 }
 
@@ -883,6 +1047,14 @@ void user_tcpserver::handleLoraRequestTimeout()
         else
             loraPollFailures.insert(loraPollingMac, failures);
     }
+    if (loraRequestKind == LoraRequestKind::WriteClock &&
+        loraPendingClockAttempts >= 3) {
+        emit loraClockSyncFinished(loraPendingClockMac, false,
+                                   QStringLiteral("校时失败：终端无响应"));
+        loraPendingClockMac.clear();
+        loraPendingClockValues.clear();
+        loraPendingClockAttempts = 0;
+    }
     loraModbusBuffers.remove(loraPollingTransport);
     loraRequestKind = LoraRequestKind::None;
     loraPollingTransport = nullptr;
@@ -893,6 +1065,11 @@ void user_tcpserver::loraTimerUpdate()
 {
     if (loraRequestKind != LoraRequestKind::None)
         handleLoraRequestTimeout();
+
+    if (sendPendingLoraAnalogMode())
+        return;
+    if (sendPendingLoraClock())
+        return;
 
     if (loraDiscoveryActive) {
         if (loraTerminals.isEmpty() || loraDiscoveryTurn) {
@@ -951,6 +1128,25 @@ void user_tcpserver::handleLoraPollResponse(
     }
 
     const quint16 relayMask = registers.at(16);
+    const quint16 inputMask = registers.at(17);
+
+    QStringList signalValues;
+    signalValues.reserve(12);
+    for (int input = 0; input < 4; ++input) {
+        signalValues.append((inputMask & (1U << input))
+                                ? QStringLiteral("1")
+                                : QStringLiteral("0"));
+    }
+    for (int channel = 0; channel < 4; ++channel) {
+        const qint16 encoded = static_cast<qint16>(registers.at(8 + channel));
+        signalValues.append(
+            QString::number(static_cast<double>(encoded) / 100.0, 'f', 2));
+    }
+    for (int channel = 0; channel < 4; ++channel) {
+        signalValues.append(registers.at(12 + channel) != 0
+                                ? QStringLiteral("1")
+                                : QStringLiteral("0"));
+    }
 
     sqlite.updaterowdata("devdata", "dev_chvolt",
                          voltageValues.join(QLatin1Char('#')), row);
@@ -967,6 +1163,7 @@ void user_tcpserver::handleLoraPollResponse(
     const QString endpoint = loraTransportLabel(terminal.transport);
     emit QmlModelShowData(1, endpoint, mac, voltageValues, 0);
     emit QmlModelShowData(2, endpoint, mac, currentValues, 0);
+    emit QmlModelShowData(5, endpoint, mac, signalValues, 0);
     handleLoraRelayStates(mac, static_cast<quint8>(relayMask));
 }
 
