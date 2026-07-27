@@ -5,6 +5,7 @@
 #include <QJsonParseError>
 #include <QJsonObject>
 #include <QJsonArray>
+#include <QSerialPortInfo>
 #include <qjsonarray.h>
 #include <QString>
 #include <QSqlDatabase>
@@ -17,9 +18,17 @@ user_tcpserver :: user_tcpserver(QObject *parent):  QObject(parent)
     tcpsocket[user_global_param::ClientNum]->abort();
     timerTask = new QTimer(this);
     timerTaskedit = new QTimer(this);
+    loraTimer = new QTimer(this);
+    loraSerialPort = new QSerialPort(this);
     //连接信号槽
     connect(tcpserver,&QTcpServer::newConnection,this,&user_tcpserver::user_server_New_Connect);
     connect(timerTask, &QTimer::timeout, this, &user_tcpserver::timerUpDate);
+    connect(loraTimer, &QTimer::timeout, this,
+            &user_tcpserver::loraTimerUpdate);
+    connect(loraSerialPort, &QSerialPort::readyRead, this,
+            &user_tcpserver::loraSerialReadyRead);
+    connect(loraSerialPort, &QSerialPort::errorOccurred, this,
+            &user_tcpserver::loraSerialError);
 
     for(quint8 i = 0; i < 100; i ++)
     {
@@ -40,6 +49,71 @@ user_tcpserver :: user_tcpserver(QObject *parent):  QObject(parent)
         }
     }
 }
+
+QStringList user_tcpserver::availableLoraSerialPorts() const
+{
+    QStringList ports;
+    for (const QSerialPortInfo &info : QSerialPortInfo::availablePorts())
+        ports.append(info.portName());
+    ports.sort(Qt::CaseInsensitive);
+    return ports;
+}
+
+bool user_tcpserver::openLoraSerialPort(const QString &portName,
+                                        qint32 baudRate)
+{
+    const QString name = portName.trimmed();
+    if (name.isEmpty() || baudRate <= 0)
+        return false;
+    if (loraSerialPort->isOpen())
+        closeLoraSerialPort();
+
+    loraSerialPort->setPortName(name);
+    loraSerialPort->setBaudRate(baudRate);
+    loraSerialPort->setDataBits(QSerialPort::Data8);
+    loraSerialPort->setParity(QSerialPort::NoParity);
+    loraSerialPort->setStopBits(QSerialPort::OneStop);
+    loraSerialPort->setFlowControl(QSerialPort::NoFlowControl);
+    if (!loraSerialPort->open(QIODevice::ReadWrite)) {
+        emit loraSerialStatusChanged(false, loraSerialPort->errorString());
+        return false;
+    }
+
+    restartLoraDiscovery();
+    if (!loraTimer->isActive())
+        loraTimer->start(300);
+    emit loraSerialStatusChanged(
+        true, QStringLiteral("%1 @ %2 8N1").arg(name).arg(baudRate));
+    return true;
+}
+
+void user_tcpserver::closeLoraSerialPort()
+{
+    if (!loraSerialPort->isOpen())
+        return;
+    removeLoraTransport(loraSerialPort);
+    const QString name = loraSerialPort->portName();
+    loraSerialPort->close();
+    emit loraSerialStatusChanged(false,
+                                 QStringLiteral("%1 closed").arg(name));
+}
+
+QString user_tcpserver::currentLoraSerialPort() const
+{
+    return loraSerialPort->isOpen() ? loraSerialPort->portName() : QString();
+}
+
+void user_tcpserver::loraSerialReadyRead()
+{
+    processLoraModbusData(loraSerialPort, loraSerialPort->readAll());
+}
+
+void user_tcpserver::loraSerialError(QSerialPort::SerialPortError error)
+{
+    if (error == QSerialPort::ResourceError)
+        closeLoraSerialPort();
+}
+
 void user_tcpserver::tcpServerListen()
 {
     qDebug() << "Roger Test Beging..............";
@@ -65,6 +139,9 @@ void user_tcpserver::user_server_New_Connect()
     {
         timerTask->start(2000);
     }
+    if (!loraTimer->isActive())
+        loraTimer->start(300);
+    restartLoraDiscovery();
 
 }
 void user_tcpserver::serversocket_Disconnected()//断开连接
@@ -72,11 +149,16 @@ void user_tcpserver::serversocket_Disconnected()//断开连接
     sqlitefun sqlite;
     sqlitefun *sqlitefunobj = &sqlite;
     QTcpSocket *obj = (QTcpSocket*)sender();
-    loraReceiveBuffers.remove(obj);
-    QString toqmlIpstr = obj->QAbstractSocket::peerAddress().toString().remove(0, 7) + "+" + QString:: asprintf("%d",obj->QAbstractSocket::peerPort());
+    removeLoraTransport(obj);
+    QString peerIp = obj->peerAddress().toString();
+    if (peerIp.startsWith(QStringLiteral("::ffff:")))
+        peerIp.remove(0, 7);
+    QString toqmlIpstr =
+        peerIp + "+" + QString::number(obj->peerPort());
     QString currentdel_id  = sqlitefunobj->findsqldataID("devdata","dev_ip",toqmlIpstr);
     sqlitefunobj->updaterowdata("devdata","dev_linestate","0",currentdel_id.toUInt(nullptr,10));//初始化在线状态
     emit  deleqmlshowmodel(toqmlIpstr);
+    restartLoraDiscovery();
 }
 void user_tcpserver::serversocker_Retrun_Data()
 {
@@ -85,25 +167,9 @@ void user_tcpserver::serversocker_Retrun_Data()
         return;
 
     const QByteArray tcpData = obj->readAll();
-    QByteArray &pending = loraReceiveBuffers[obj];
-    const bool isLoraData = !pending.isEmpty() ||
-                            (!tcpData.isEmpty() &&
-                             static_cast<quint8>(tcpData.at(0)) == 0xA5);
-    if (!isLoraData) {
-        processLegacyData(obj, tcpData);
+    if (processLoraModbusData(obj, tcpData))
         return;
-    }
-
-    pending.append(tcpData);
-    LoraOnlineProtocol::Frame frame;
-    while (LoraOnlineProtocol::takeFrame(pending, &frame)) {
-        LoraOnlineProtocol::OnlineDevice device;
-        if (frame.sequence == loraScanSequence &&
-            LoraOnlineProtocol::decodeOnlineResponse(frame, &device))
-            handleLoraOnline(obj, device);
-    }
-    if (pending.size() > 128)
-        pending.clear();
+    processLegacyData(obj, tcpData);
 }
 
 void user_tcpserver::processLegacyData(QTcpSocket *obj, const QByteArray &TcpReadMsg)
@@ -481,60 +547,97 @@ void user_tcpserver::processLegacyData(QTcpSocket *obj, const QByteArray &TcpRea
     }
 }
 
-void user_tcpserver::sendLoraScan()
+bool user_tcpserver::loraTransportReady(QIODevice *transport) const
 {
-    sqlitefun sqlite;
-    QMutableHashIterator<QString, quint8> device(loraMissedScans);
-    while (device.hasNext()) {
-        device.next();
-        if (device.value() >= 2) {
-            const QString id =
-                sqlite.findsqldataID("devdata", "dev_mac", device.key());
-            if (id != "FAIL" && id != "NONE")
-                sqlite.updaterowdata("devdata", "dev_linestate", "0",
-                                     id.toUInt());
-            emit deleqmlshowmodel(device.key());
-            device.remove();
-        } else {
-            device.setValue(device.value() + 1);
-        }
-    }
-
-    ++loraScanSequence;
-    if (loraScanSequence == 0)
-        ++loraScanSequence;
-
-    const QByteArray request =
-        LoraOnlineProtocol::makeScanRequest(loraScanSequence, 16, 12);
-    for (quint8 i = 0; i < user_global_param::ClientNum && i < 100; ++i) {
-        QTcpSocket *socket = tcpsocket[i];
-        if (!socket || socket->state() != QAbstractSocket::ConnectedState)
-            continue;
-        socket->write(request);
-        socket->flush();
-    }
+    if (QTcpSocket *socket = qobject_cast<QTcpSocket *>(transport))
+        return socket->state() == QAbstractSocket::ConnectedState;
+    if (QSerialPort *serial = qobject_cast<QSerialPort *>(transport))
+        return serial->isOpen();
+    return false;
 }
 
-void user_tcpserver::handleLoraOnline(
-    QTcpSocket *socket, const LoraOnlineProtocol::OnlineDevice &device)
+QString user_tcpserver::loraTransportIdentity(QIODevice *transport) const
 {
-    if (!socket || device.deviceType != 0x01 ||
-        device.channelCount == 0 || device.channelCount > 32)
+    if (QTcpSocket *socket = qobject_cast<QTcpSocket *>(transport))
+        return QStringLiteral("TCP:%1").arg(socket->peerAddress().toString());
+    if (QSerialPort *serial = qobject_cast<QSerialPort *>(transport))
+        return QStringLiteral("SERIAL:%1").arg(serial->portName().toUpper());
+    return {};
+}
+
+QString user_tcpserver::loraTransportLabel(QIODevice *transport) const
+{
+    if (QTcpSocket *socket = qobject_cast<QTcpSocket *>(transport)) {
+        QString ip = socket->peerAddress().toString();
+        if (ip.startsWith(QStringLiteral("::ffff:")))
+            ip.remove(0, 7);
+        return ip + QLatin1Char('+') + QString::number(socket->peerPort());
+    }
+    if (QSerialPort *serial = qobject_cast<QSerialPort *>(transport))
+        return QStringLiteral("SERIAL:%1").arg(serial->portName());
+    return {};
+}
+
+void user_tcpserver::writeLoraFrame(QIODevice *transport,
+                                    const QByteArray &frame)
+{
+    if (!loraTransportReady(transport))
+        return;
+    transport->write(frame);
+    if (QTcpSocket *socket = qobject_cast<QTcpSocket *>(transport))
+        socket->flush();
+    else if (QSerialPort *serial = qobject_cast<QSerialPort *>(transport))
+        serial->flush();
+}
+
+QString user_tcpserver::makeLoraTerminalId(QIODevice *transport,
+                                            quint8 address) const
+{
+    QByteArray identity = loraTransportIdentity(transport).toUtf8();
+    if (identity.isEmpty())
+        return {};
+    identity.append(static_cast<char>(address));
+    quint64 hash = Q_UINT64_C(1469598103934665603);
+    for (const char value : identity) {
+        hash ^= static_cast<quint8>(value);
+        hash *= Q_UINT64_C(1099511628211);
+    }
+
+    QStringList bytes;
+    bytes.reserve(6);
+    for (int i = 0; i < 6; ++i) {
+        quint8 value = static_cast<quint8>(hash >> ((5 - i) * 8));
+        if (i == 0)
+            value = static_cast<quint8>((value | 0x02U) & 0xFEU);
+        bytes.append(QStringLiteral("%1").arg(value, 2, 16,
+                                               QLatin1Char('0')).toUpper());
+    }
+    return bytes.join(QLatin1Char('-'));
+}
+
+void user_tcpserver::handleLoraDiscovered(
+    QIODevice *transport, const LoraModbusProtocol::ServerInfo &server)
+{
+    if (!loraTransportReady(transport) || !server.running ||
+        server.address == 0)
         return;
 
-    const QString mac = LoraOnlineProtocol::formatMac(device.mac);
+    const QString mac = makeLoraTerminalId(transport, server.address);
     if (mac.isEmpty())
         return;
-    loraMissedScans.insert(mac, 0);
+    loraPollFailures.insert(mac, 0);
+    LoraTerminalEndpoint terminal;
+    terminal.transport = transport;
+    terminal.modbusAddress = server.address;
+    loraTerminals.insert(mac, terminal);
 
-    QString peerIp = socket->peerAddress().toString();
-    if (peerIp.startsWith(QStringLiteral("::ffff:")))
-        peerIp.remove(0, 7);
-    const QString endpoint =
-        peerIp + QLatin1Char('+') + QString::number(socket->peerPort());
+    const QString endpoint = loraTransportLabel(transport);
     const QString modbusAddress =
-        QStringLiteral("%1").arg(device.modbusAddress, 2, 16,
+        QStringLiteral("%1").arg(server.address, 2, 16,
                                  QLatin1Char('0')).toUpper();
+    int channelCount = server.model.section(QLatin1Char('-'), -1).toInt();
+    if (channelCount <= 0 || channelCount > 32)
+        channelCount = 4;
 
     sqlitefun sqlite;
     QString id = sqlite.findsqldataID("devdata", "dev_mac", mac);
@@ -551,23 +654,20 @@ void user_tcpserver::handleLoraOnline(
         return;
     const quint8 row = static_cast<quint8>(rowValue);
 
-    sqltcpsocket[row] = socket;
+    if (QTcpSocket *socket = qobject_cast<QTcpSocket *>(transport))
+        sqltcpsocket[row] = socket;
     user_global_param::allClientsMac[row] = mac;
     sqlite.updaterowdata("devdata", "dev_485adr", modbusAddress, row);
     sqlite.updaterowdata("devdata", "dev_ip", endpoint, row);
     sqlite.updaterowdata("devdata", "dev_linestate", "1", row);
     sqlite.updaterowdata("devdata", "dev_kind",
-                         QString::number(device.channelCount), row);
-    sqlite.updaterowdata(
-        "devdata", "dev_softver",
-        QStringLiteral("%1.%2").arg(device.firmwareMajor)
-                               .arg(device.firmwareMinor),
-        row);
+                         QString::number(channelCount), row);
+    sqlite.updaterowdata("devdata", "dev_softver", server.model, row);
 
     if (isNew) {
         QStringList channelNames;
         QStringList zeroValues;
-        for (quint8 channel = 1; channel <= device.channelCount; ++channel) {
+        for (int channel = 1; channel <= channelCount; ++channel) {
             channelNames.append(QStringLiteral("CH%1").arg(channel));
             zeroValues.append(QStringLiteral("0"));
         }
@@ -583,22 +683,325 @@ void user_tcpserver::handleLoraOnline(
         sqlite.updaterowdata("devdata", "dev_totalcurr", "---", row);
     }
 
-    emit QmlModelShowData(0, peerIp, mac,
+    emit QmlModelShowData(0, endpoint, mac,
                           QStringList{QStringLiteral("---")}, 0);
+}
+
+bool user_tcpserver::processLoraModbusData(QIODevice *transport,
+                                           const QByteArray &data)
+{
+    if (loraRequestKind == LoraRequestKind::None ||
+        transport != loraPollingTransport || data.isEmpty())
+        return false;
+
+    QByteArray &buffer = loraModbusBuffers[transport];
+    if (buffer.isEmpty() &&
+        static_cast<quint8>(data.at(0)) != loraPollingAddress)
+        return false;
+
+    buffer.append(data);
+    quint8 exceptionCode = 0;
+    if (loraRequestKind == LoraRequestKind::Discovery) {
+        LoraModbusProtocol::ServerInfo server;
+        if (!LoraModbusProtocol::takeServerIdResponse(
+                buffer, loraPollingAddress, &server, &exceptionCode))
+            return true;
+        QIODevice *responseTransport = loraPollingTransport;
+        loraRequestKind = LoraRequestKind::None;
+        loraPollingTransport = nullptr;
+        if (exceptionCode == 0)
+            handleLoraDiscovered(responseTransport, server);
+        return true;
+    }
+
+    if (loraRequestKind == LoraRequestKind::ReadRelayStates) {
+        quint8 relayMask = 0;
+        if (!LoraModbusProtocol::takeReadRelayStatesResponse(
+                buffer, loraPollingAddress, &relayMask, &exceptionCode))
+            return true;
+
+        const QString mac = loraPollingMac;
+        loraRequestKind = LoraRequestKind::None;
+        loraPollingTransport = nullptr;
+        loraPollingMac.clear();
+        if (exceptionCode == 0)
+            handleLoraRelayStates(mac, relayMask);
+        return true;
+    }
+
+    QVector<quint16> registers;
+    if (!LoraModbusProtocol::takeReadInputResponse(
+            buffer, loraPollingAddress, &registers, &exceptionCode))
+        return true;
+
+    const QString mac = loraPollingMac;
+    loraRequestKind = LoraRequestKind::None;
+    loraPollingTransport = nullptr;
+    loraPollingMac.clear();
+    if (exceptionCode == 0 && registers.size() == 18)
+        handleLoraPollResponse(mac, registers);
+    return true;
+}
+
+void user_tcpserver::pollNextLoraTerminal()
+{
+    QStringList devices = loraTerminals.keys();
+    devices.sort(Qt::CaseInsensitive);
+    if (devices.isEmpty())
+        return;
+
+    for (int attempt = 0; attempt < devices.size(); ++attempt) {
+        if (loraPollingIndex >= devices.size())
+            loraPollingIndex = 0;
+        const QString mac = devices.at(loraPollingIndex++);
+        const LoraTerminalEndpoint terminal = loraTerminals.value(mac);
+        if (!loraTransportReady(terminal.transport) ||
+            terminal.modbusAddress == 0)
+            continue;
+
+        loraPollingMac = mac;
+        loraPollingTransport = terminal.transport;
+        loraPollingAddress = terminal.modbusAddress;
+        loraRequestKind = terminal.readRelayStatesNext
+                              ? LoraRequestKind::ReadRelayStates
+                              : LoraRequestKind::ReadInputs;
+        loraTerminals[mac].readRelayStatesNext =
+            !terminal.readRelayStatesNext;
+        loraModbusBuffers.remove(terminal.transport);
+
+        const QByteArray request =
+            loraRequestKind == LoraRequestKind::ReadRelayStates
+                ? LoraModbusProtocol::makeReadRelayStates(
+                      terminal.modbusAddress)
+                : LoraModbusProtocol::makeReadInputRegisters(
+                      terminal.modbusAddress, 0x0000, 18);
+        writeLoraFrame(terminal.transport, request);
+        return;
+    }
+}
+
+void user_tcpserver::sendNextLoraDiscovery()
+{
+    QList<QIODevice *> gateways;
+    if (loraSerialPort->isOpen())
+        gateways.append(loraSerialPort);
+    for (quint8 i = 0; i < user_global_param::ClientNum && i < 100; ++i) {
+        QTcpSocket *socket = tcpsocket[i];
+        if (socket && socket->state() == QAbstractSocket::ConnectedState)
+            gateways.append(socket);
+    }
+    if (gateways.isEmpty())
+        return;
+
+    if (loraDiscoverySocketIndex >= gateways.size()) {
+        loraDiscoverySocketIndex = 0;
+        ++loraDiscoveryAddress;
+    }
+    if (loraDiscoveryAddress > 247) {
+        loraDiscoveryAddress = 1;
+        loraDiscoverySocketIndex = 0;
+        loraDiscoveryActive = false;
+        loraRescanCountdown = 200;
+        return;
+    }
+
+    QIODevice *transport = gateways.at(loraDiscoverySocketIndex++);
+    loraPollingTransport = transport;
+    loraPollingAddress = static_cast<quint8>(loraDiscoveryAddress);
+    loraPollingMac.clear();
+    loraRequestKind = LoraRequestKind::Discovery;
+    loraModbusBuffers.remove(transport);
+    writeLoraFrame(
+        transport,
+        LoraModbusProtocol::makeReportServerId(loraPollingAddress));
+}
+
+void user_tcpserver::setLoraTerminalOffline(const QString &mac)
+{
+    sqlitefun sqlite;
+    const QString id = sqlite.findsqldataID("devdata", "dev_mac", mac);
+    if (id != "FAIL" && id != "NONE" && id.toUInt() < 100)
+        sqlite.updaterowdata("devdata", "dev_linestate", "0",
+                             static_cast<quint8>(id.toUInt()));
+    loraTerminals.remove(mac);
+    loraPollFailures.remove(mac);
+    emit deleqmlshowmodel(mac);
+}
+
+void user_tcpserver::removeLoraTransport(QIODevice *transport)
+{
+    if (!transport)
+        return;
+
+    sqlitefun sqlite;
+    QMutableHashIterator<QString, LoraTerminalEndpoint> terminal(loraTerminals);
+    while (terminal.hasNext()) {
+        terminal.next();
+        if (terminal.value().transport != transport)
+            continue;
+        const QString id =
+            sqlite.findsqldataID("devdata", "dev_mac", terminal.key());
+        if (id != "FAIL" && id != "NONE" && id.toUInt() < 100)
+            sqlite.updaterowdata("devdata", "dev_linestate", "0",
+                                 static_cast<quint8>(id.toUInt()));
+        loraPollFailures.remove(terminal.key());
+        emit deleqmlshowmodel(terminal.key());
+        terminal.remove();
+    }
+
+    loraModbusBuffers.remove(transport);
+    if (loraPollingTransport == transport) {
+        loraRequestKind = LoraRequestKind::None;
+        loraPollingTransport = nullptr;
+        loraPollingMac.clear();
+    }
+}
+
+void user_tcpserver::restartLoraDiscovery()
+{
+    if (loraRequestKind != LoraRequestKind::None)
+        loraModbusBuffers.remove(loraPollingTransport);
+    loraRequestKind = LoraRequestKind::None;
+    loraPollingTransport = nullptr;
+    loraPollingMac.clear();
+    loraDiscoveryAddress = 1;
+    loraDiscoverySocketIndex = 0;
+    loraRescanCountdown = 0;
+    loraDiscoveryActive = true;
+    loraDiscoveryTurn = true;
+}
+
+void user_tcpserver::handleLoraRequestTimeout()
+{
+    if ((loraRequestKind == LoraRequestKind::ReadInputs ||
+         loraRequestKind == LoraRequestKind::ReadRelayStates) &&
+        !loraPollingMac.isEmpty()) {
+        const quint8 failures =
+            static_cast<quint8>(loraPollFailures.value(loraPollingMac) + 1);
+        if (failures >= 3)
+            setLoraTerminalOffline(loraPollingMac);
+        else
+            loraPollFailures.insert(loraPollingMac, failures);
+    }
+    loraModbusBuffers.remove(loraPollingTransport);
+    loraRequestKind = LoraRequestKind::None;
+    loraPollingTransport = nullptr;
+    loraPollingMac.clear();
+}
+
+void user_tcpserver::loraTimerUpdate()
+{
+    if (loraRequestKind != LoraRequestKind::None)
+        handleLoraRequestTimeout();
+
+    if (loraDiscoveryActive) {
+        if (loraTerminals.isEmpty() || loraDiscoveryTurn) {
+            sendNextLoraDiscovery();
+            loraDiscoveryTurn = false;
+        } else {
+            pollNextLoraTerminal();
+            loraDiscoveryTurn = true;
+        }
+        return;
+    }
+
+    if (loraTerminals.isEmpty()) {
+        loraDiscoveryActive = true;
+        loraDiscoveryTurn = true;
+        sendNextLoraDiscovery();
+        return;
+    }
+
+    pollNextLoraTerminal();
+    if (--loraRescanCountdown <= 0) {
+        loraDiscoveryActive = true;
+        loraDiscoveryTurn = true;
+        loraDiscoveryAddress = 1;
+        loraDiscoverySocketIndex = 0;
+    }
+}
+
+void user_tcpserver::handleLoraPollResponse(
+    const QString &mac, const QVector<quint16> &registers)
+{
+    if (registers.size() != 18)
+        return;
+
+    sqlitefun sqlite;
+    const QString id = sqlite.findsqldataID("devdata", "dev_mac", mac);
+    if (id == "FAIL" || id == "NONE" || id.toUInt() >= 100)
+        return;
+    const quint8 row = static_cast<quint8>(id.toUInt());
+
+    QStringList voltageValues;
+    QStringList currentValues;
+    double totalCurrent = 0.0;
+    for (int channel = 0; channel < 4; ++channel) {
+        const qint16 encoded = static_cast<qint16>(registers.at(8 + channel));
+        const double value = encoded / 100.0;
+        const bool currentMode = registers.at(12 + channel) != 0;
+        if (currentMode) {
+            voltageValues.append(QStringLiteral("0"));
+            currentValues.append(QString::number(value, 'f', 2));
+            totalCurrent += value;
+        } else {
+            voltageValues.append(QString::number(value, 'f', 2));
+            currentValues.append(QStringLiteral("0"));
+        }
+    }
+
+    const quint16 relayMask = registers.at(16);
+
+    sqlite.updaterowdata("devdata", "dev_chvolt",
+                         voltageValues.join(QLatin1Char('#')), row);
+    sqlite.updaterowdata("devdata", "dev_chcurr",
+                         currentValues.join(QLatin1Char('#')), row);
+    sqlite.updaterowdata("devdata", "dev_totalcurr",
+                         QString::number(totalCurrent, 'f', 2), row);
+    sqlite.updaterowdata("devdata", "dev_inputvolt",
+                         voltageValues.first(), row);
+    sqlite.updaterowdata("devdata", "dev_linestate", "1", row);
+    loraPollFailures.insert(mac, 0);
+
+    const LoraTerminalEndpoint terminal = loraTerminals.value(mac);
+    const QString endpoint = loraTransportLabel(terminal.transport);
+    emit QmlModelShowData(1, endpoint, mac, voltageValues, 0);
+    emit QmlModelShowData(2, endpoint, mac, currentValues, 0);
+    handleLoraRelayStates(mac, static_cast<quint8>(relayMask));
+}
+
+void user_tcpserver::handleLoraRelayStates(const QString &mac,
+                                            quint8 relayMask)
+{
+    sqlitefun sqlite;
+    const QString id = sqlite.findsqldataID("devdata", "dev_mac", mac);
+    if (id == "FAIL" || id == "NONE" || id.toUInt() >= 100)
+        return;
+    const quint8 row = static_cast<quint8>(id.toUInt());
+
+    QStringList relayStates;
+    relayStates.reserve(LoraModbusProtocol::RelayCoilCount);
+    for (quint16 channel = 0;
+         channel < LoraModbusProtocol::RelayCoilCount; ++channel) {
+        relayStates.append((relayMask & (1U << channel))
+                               ? QStringLiteral("1")
+                               : QStringLiteral("0"));
+    }
+
+    sqlite.updaterowdata("devdata", "dev_chswstate1",
+                         relayStates.join(QLatin1Char('#')), row);
+    sqlite.updaterowdata("devdata", "dev_linestate", "1", row);
+    loraPollFailures.insert(mac, 0);
+
+    const LoraTerminalEndpoint terminal = loraTerminals.value(mac);
+    emit QmlModelShowData(4, loraTransportLabel(terminal.transport), mac,
+                          relayStates, 0);
 }
 
 void user_tcpserver::timerUpDate()//定时发送数据
 {
-    static quint8 temp_i = 0;
     static quint8 temp_j = 0;
     static quint8 sqltemp_i = 0;
-
-    QString allmacstr = "";
-    QStringList allmacstrbuf;
-    QString allkindstr = "";
-    QStringList allkindstrbuf;
-    sqlitefun sqlite;
-    sqlitefun *sqlitefunobj = &sqlite;
     static quint8 harddatasendendfalg = 0;
     if(harddatasendendfalg)
     {
@@ -679,98 +1082,7 @@ void user_tcpserver::timerUpDate()//定时发送数据
     }
     else
     {
-        if(temp_i == 0)//心跳
-        {
-            temp_i ++;
-            harddatasendendfalg = 1;
-            sendLoraScan();
-
-
-        }
-        else if(temp_i == 1)//获取硬件版本号
-        {
-            temp_i ++;
-            allmacstr = sqlitefunobj->traversedata("devdata","dev_mac");
-            if(allmacstr == "FAIL" || allmacstr == "NONE") return;
-            allmacstrbuf = allmacstr.split("&");
-            for(quint8 iue = 0; iue < allmacstrbuf.length();iue ++)
-            {
-                serversocket_Send_ReadData(allmacstrbuf[iue], 0x0378, 0x03, 0x01,0x0324);
-
-            }
-
-        }
-        else if(temp_i == 2)//获取软件版本号
-        {
-            temp_i ++;
-            allmacstr = sqlitefunobj->traversedata("devdata","dev_mac");
-            if(allmacstr == "FAIL" || allmacstr == "NONE") return;
-
-            allmacstrbuf = allmacstr.split("&");
-            for(quint8 iue1 = 0; iue1 < allmacstrbuf.length();iue1 ++)
-            {
-                serversocket_Send_ReadData(allmacstrbuf[iue1], 0x0376 ,0x03, 0x02,0x0314);
-
-            }
-        }
-        else if(temp_i == 3)//获取开关状态
-        {
-            temp_i ++;
-            allmacstr = sqlitefunobj->traversedata("devdata","dev_mac");
-            if(allmacstr == "FAIL" || allmacstr == "NONE") return;
-            allmacstrbuf = allmacstr.split("&");
-            for(quint8 iue = 0; iue < allmacstrbuf.length();iue ++)
-            {
-                serversocket_Send_ReadData(allmacstrbuf[iue], 0x022c, 0x03, 0x02,0x0344);
-
-            }
-        }
-        else if(temp_i == 4)//获取电流
-        {
-            temp_i ++;
-            allmacstr = sqlitefunobj->traversedata("devdata","dev_mac");
-            if(allmacstr == "FAIL" || allmacstr == "NONE") return;
-            allmacstrbuf = allmacstr.split("&");
-            allkindstr = sqlitefunobj->traversedata("devdata","dev_kind");
-            if(allkindstr == "FAIL" || allmacstr == "NONE") return;
-            allkindstrbuf = allkindstr.split("&");
-            for(quint8 iue = 0; iue < allmacstrbuf.length();iue ++)
-            {
-                serversocket_Send_ReadData(allmacstrbuf[iue], 0x0064, 0x03,allkindstrbuf[iue].toUInt() ,0x0354);
-            }
-        }
-        else if(temp_i == 5)//获取温度
-        {
-            temp_i ++;
-            allmacstr = sqlitefunobj->traversedata("devdata","dev_mac");
-            if(allmacstr == "FAIL" || allmacstr == "NONE") return;
-            allmacstrbuf = allmacstr.split("&");
-            allkindstr = sqlitefunobj->traversedata("devdata","dev_kind");
-            if(allkindstr == "FAIL" || allmacstr == "NONE") return;
-            allkindstrbuf = allkindstr.split("&");
-            for(quint8 iue = 0; iue < allmacstrbuf.length();iue ++)
-            {
-                serversocket_Send_ReadData(allmacstrbuf[iue], 0x00C9, 0x03,0x01 ,0x0354);
-            }
-        }
-        else if(temp_i == 6)//获取温度
-        {
-            temp_i ++;
-            allmacstr = sqlitefunobj->traversedata("devdata","dev_mac");
-            if(allmacstr == "FAIL" || allmacstr == "NONE") return;
-            allmacstrbuf = allmacstr.split("&");
-            allkindstr = sqlitefunobj->traversedata("devdata","dev_kind");
-            if(allkindstr == "FAIL" || allmacstr == "NONE") return;
-            allkindstrbuf = allkindstr.split("&");
-            for(quint8 iue = 0; iue < allmacstrbuf.length();iue ++)
-            {
-                serversocket_Send_ReadData(allmacstrbuf[iue], 0x0001, 0x03,allkindstrbuf[iue].toUInt() ,0x0354);
-            }
-        }
-        else
-        {
-            temp_i = 0;
-        }
+        harddatasendendfalg = 1;
     }
 }
 

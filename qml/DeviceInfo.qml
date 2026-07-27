@@ -621,6 +621,24 @@ Page {
 
         }
 
+        function updateRelayStates(devicemac, relayStates) {
+            if (device_mac_s1.text !== devicemac)
+                return
+            var count = Math.min(totalch_id.model.count,
+                                 relayStates.length)
+            for (var i = 0; i < count; ++i) {
+                var relayOn = Number(relayStates[i]) === 1
+                totalch_id.model.set(i, {
+                    iconsourceopen: relayOn
+                                    ? "qrc:/icon/Info_OpenE.png"
+                                    : "qrc:/icon/Info_OpenD.png",
+                    iconsourceclose: relayOn
+                                     ? "qrc:/icon/Info_CloseD.png"
+                                     : "qrc:/icon/Info_CloseE.png"
+                })
+            }
+        }
+
     }
 
     MsgDialog {

@@ -638,6 +638,8 @@ function chargequickcontrolstateshow(index,swstate){
          if(idlont === "FAIL" || idlont === "NONE") return;
          if(qmlroomnum === "FAIL" || qmlroomnum === "NONE") return;
          if(qmlmacstr === "FAIL" || qmlmacstr === "NONE") return;
+        if(qmlcmd === 4)
+            mode_DeviceInfo.updateRelayStates(qmlmac, arrayData)
         var qmlmacstrbuf = qmlmacstr.split("&");//设备16-32通道状态
         var creatmodelflag = 0
         for(var tt = 0; tt < totalModel_id.count; tt ++)
@@ -684,6 +686,8 @@ function chargequickcontrolstateshow(index,swstate){
 
                     case 3:    //温度
                         totalModel_id.model.set( i,{roomtemp_text: arrayData[0]})
+                        break;
+                    case 4:    // LoRa继电器状态
                         break;
                     default:
 

@@ -1,6 +1,6 @@
 !equals(QT_MAJOR_VERSION, 6): error("This project requires Qt 6")
 
-QT += core gui network quick qml sql
+QT += core gui network serialport quick qml sql
 CONFIG += c++17
 
 # The following define makes your compiler emit warnings if you use
@@ -16,7 +16,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
     cpp/DeviceDataStr.cpp \
-    cpp/lora_online_protocol.cpp \
+    cpp/lora_modbus_protocol.cpp \
     cpp/sqlitefun.cpp \
     cpp/user_global_param.cpp \
     cpp/user_tcpserver.cpp \
@@ -44,7 +44,7 @@ FORMS +=
 
 HEADERS += \
     cpp/DeviceDataStr.h \
-    cpp/lora_online_protocol.h \
+    cpp/lora_modbus_protocol.h \
     cpp/sqlitefun.h \
     cpp/user_global_param.h \
     cpp/user_tcpserver.h

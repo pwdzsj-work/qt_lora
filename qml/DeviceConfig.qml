@@ -400,6 +400,60 @@ Page {
                 color: "#14203f"
                 font.pixelSize: 16
             }
+            Row {
+                anchors.top: parent.top
+                anchors.topMargin: 150
+                anchors.left: parent.left
+                anchors.leftMargin: 20
+                spacing: 10
+
+                Text {
+                    text: qsTr("LoRa串口")
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.pixelSize: 16
+                }
+                ComboBox {
+                    id: loraPortBox
+                    width: 140
+                    model: []
+                }
+                Button {
+                    text: qsTr("刷新")
+                    onClicked: {
+                        loraPortBox.model =
+                                user_tcpserver_qmlobj.availableLoraSerialPorts()
+                    }
+                }
+                Button {
+                    id: loraSerialButton
+                    text: user_tcpserver_qmlobj.currentLoraSerialPort() === ""
+                          ? qsTr("连接") : qsTr("断开")
+                    onClicked: {
+                        if (user_tcpserver_qmlobj.currentLoraSerialPort() !== "") {
+                            user_tcpserver_qmlobj.closeLoraSerialPort()
+                        } else if (loraPortBox.currentText !== "") {
+                            user_tcpserver_qmlobj.openLoraSerialPort(
+                                        loraPortBox.currentText, 9600)
+                        }
+                    }
+                }
+                Text {
+                    id: loraSerialState
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("未连接，9600 8N1")
+                    color: "#5f6b7a"
+                    font.pixelSize: 14
+                }
+            }
+            Connections {
+                target: user_tcpserver_qmlobj
+                function onLoraSerialStatusChanged(opened, message) {
+                    loraSerialState.text = message
+                    loraSerialState.color = opened ? "#198754" : "#b02a37"
+                    loraSerialButton.text = opened ? qsTr("断开")
+                                                   : qsTr("连接")
+                }
+            }
         }
     }
     Page{
@@ -551,6 +605,8 @@ Page {
         mainWindow.sendloginaddpanSignal.connect(loginaddplandata);
         mainWindow.sendloginaddareaSignal.connect(loginaddareadata);
         mainWindow.sendloginaddalarmSignal.connect(loginaddalarmdata);
+        loraPortBox.model =
+                user_tcpserver_qmlobj.availableLoraSerialPorts();
     }
     function loginaddplandata()//自动登录数据库内容
     {
