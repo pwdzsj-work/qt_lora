@@ -70,13 +70,14 @@ private:
     struct LoraTerminalEndpoint {
         QIODevice *transport = nullptr;
         quint8 modbusAddress = 0;
-        bool readRelayStatesNext = false;
+        quint8 pollPhase = 0;
     };
     enum class LoraRequestKind {
         None,
         Discovery,
         ReadInputs,
         ReadRelayStates,
+        ReadDigitalInputs,
         WriteAnalogMode,
         WriteClock
     };
@@ -92,6 +93,7 @@ private:
     void handleLoraPollResponse(const QString &mac,
                                 const QVector<quint16> &registers);
     void handleLoraRelayStates(const QString &mac, quint8 relayMask);
+    void handleLoraDigitalInputs(const QString &mac, quint8 inputMask);
     QString makeLoraTerminalId(QIODevice *transport, quint8 address) const;
     void handleLoraRequestTimeout();
     void setLoraTerminalOffline(const QString &mac);

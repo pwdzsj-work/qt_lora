@@ -799,6 +799,21 @@ bool user_tcpserver::processLoraModbusData(QIODevice *transport,
         return true;
     }
 
+    if (loraRequestKind == LoraRequestKind::ReadDigitalInputs) {
+        quint8 inputMask = 0;
+        if (!LoraModbusProtocol::takeReadDigitalInputStatesResponse(
+                buffer, loraPollingAddress, &inputMask, &exceptionCode))
+            return true;
+
+        const QString mac = loraPollingMac;
+        loraRequestKind = LoraRequestKind::None;
+        loraPollingTransport = nullptr;
+        loraPollingMac.clear();
+        if (exceptionCode == 0)
+            handleLoraDigitalInputs(mac, inputMask);
+        return true;
+    }
+
     if (loraRequestKind == LoraRequestKind::ReadRelayStates) {
         quint8 relayMask = 0;
         if (!LoraModbusProtocol::takeReadRelayStatesResponse(
@@ -847,19 +862,33 @@ void user_tcpserver::pollNextLoraTerminal()
         loraPollingMac = mac;
         loraPollingTransport = terminal.transport;
         loraPollingAddress = terminal.modbusAddress;
-        loraRequestKind = terminal.readRelayStatesNext
-                              ? LoraRequestKind::ReadRelayStates
-                              : LoraRequestKind::ReadInputs;
-        loraTerminals[mac].readRelayStatesNext =
-            !terminal.readRelayStatesNext;
+        switch (terminal.pollPhase) {
+        case 1:
+            loraRequestKind = LoraRequestKind::ReadRelayStates;
+            break;
+        case 2:
+            loraRequestKind = LoraRequestKind::ReadDigitalInputs;
+            break;
+        default:
+            loraRequestKind = LoraRequestKind::ReadInputs;
+            break;
+        }
+        loraTerminals[mac].pollPhase =
+            static_cast<quint8>((terminal.pollPhase + 1U) % 3U);
         loraModbusBuffers.remove(terminal.transport);
 
-        const QByteArray request =
-            loraRequestKind == LoraRequestKind::ReadRelayStates
-                ? LoraModbusProtocol::makeReadRelayStates(
-                      terminal.modbusAddress)
-                : LoraModbusProtocol::makeReadInputRegisters(
-                      terminal.modbusAddress, 0x0000, 18);
+        QByteArray request;
+        if (loraRequestKind == LoraRequestKind::ReadRelayStates) {
+            request = LoraModbusProtocol::makeReadRelayStates(
+                terminal.modbusAddress);
+        } else if (loraRequestKind ==
+                   LoraRequestKind::ReadDigitalInputs) {
+            request = LoraModbusProtocol::makeReadDigitalInputStates(
+                terminal.modbusAddress);
+        } else {
+            request = LoraModbusProtocol::makeReadInputRegisters(
+                terminal.modbusAddress, 0x0000, 18);
+        }
         writeLoraFrame(terminal.transport, request);
         return;
     }
@@ -1038,7 +1067,8 @@ void user_tcpserver::restartLoraDiscovery()
 void user_tcpserver::handleLoraRequestTimeout()
 {
     if ((loraRequestKind == LoraRequestKind::ReadInputs ||
-         loraRequestKind == LoraRequestKind::ReadRelayStates) &&
+         loraRequestKind == LoraRequestKind::ReadRelayStates ||
+         loraRequestKind == LoraRequestKind::ReadDigitalInputs) &&
         !loraPollingMac.isEmpty()) {
         const quint8 failures =
             static_cast<quint8>(loraPollFailures.value(loraPollingMac) + 1);
@@ -1193,6 +1223,27 @@ void user_tcpserver::handleLoraRelayStates(const QString &mac,
     const LoraTerminalEndpoint terminal = loraTerminals.value(mac);
     emit QmlModelShowData(4, loraTransportLabel(terminal.transport), mac,
                           relayStates, 0);
+}
+
+void user_tcpserver::handleLoraDigitalInputs(const QString &mac,
+                                              quint8 inputMask)
+{
+    if (!loraTerminals.contains(mac))
+        return;
+
+    QStringList inputStates;
+    inputStates.reserve(LoraModbusProtocol::DigitalInputCount);
+    for (quint16 input = 0;
+         input < LoraModbusProtocol::DigitalInputCount; ++input) {
+        inputStates.append((inputMask & (1U << input))
+                               ? QStringLiteral("1")
+                               : QStringLiteral("0"));
+    }
+    loraPollFailures.insert(mac, 0);
+
+    const LoraTerminalEndpoint terminal = loraTerminals.value(mac);
+    emit QmlModelShowData(6, loraTransportLabel(terminal.transport), mac,
+                          inputStates, 0);
 }
 
 void user_tcpserver::timerUpDate()//定时发送数据

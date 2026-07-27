@@ -44,6 +44,15 @@ Rectangle {
         }
     }
 
+    function updateDigitalInputs(values) {
+        if (!values || values.length < 4)
+            return
+        for (var input = 0; input < 4; ++input) {
+            digitalInputModel.setProperty(input, "high",
+                                          Number(values[input]) !== 0)
+        }
+    }
+
     Text {
         id: panelTitle
         anchors.left: parent.left

@@ -22,6 +22,10 @@ Page {
         infomain_rec.updateTerminalSignals(devicemac, signalValues)
     }
 
+    function updateDigitalInputs(devicemac, inputStates) {
+        infomain_rec.updateDigitalInputs(devicemac, inputStates)
+    }
+
     Rectangle {
         id : infomain_rec
         anchors.left: parent.left
@@ -675,6 +679,12 @@ Page {
             if (device_mac_s1.text !== devicemac)
                 return
             signalMonitorPanel.updateSignals(signalValues)
+        }
+
+        function updateDigitalInputs(devicemac, inputStates) {
+            if (device_mac_s1.text !== devicemac)
+                return
+            signalMonitorPanel.updateDigitalInputs(inputStates)
         }
 
     }

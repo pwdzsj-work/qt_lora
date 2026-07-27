@@ -640,6 +640,10 @@ function chargequickcontrolstateshow(index,swstate){
          if(qmlmacstr === "FAIL" || qmlmacstr === "NONE") return;
         if(qmlcmd === 4)
             mode_DeviceInfo.updateRelayStates(qmlmac, arrayData)
+        else if(qmlcmd === 5)
+            mode_DeviceInfo.updateTerminalSignals(qmlmac, arrayData)
+        else if(qmlcmd === 6)
+            mode_DeviceInfo.updateDigitalInputs(qmlmac, arrayData)
         var qmlmacstrbuf = qmlmacstr.split("&");//设备16-32通道状态
         var creatmodelflag = 0
         for(var tt = 0; tt < totalModel_id.count; tt ++)
@@ -688,6 +692,10 @@ function chargequickcontrolstateshow(index,swstate){
                         totalModel_id.model.set( i,{roomtemp_text: arrayData[0]})
                         break;
                     case 4:    // LoRa继电器状态
+                        break;
+                    case 5:    // LoRa检测信号
+                        break;
+                    case 6:    // LoRa NQ1～NQ4状态
                         break;
                     default:
 

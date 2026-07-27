@@ -180,6 +180,81 @@ bool takeReadRelayStatesResponse(QByteArray &buffer, quint8 expectedAddress,
     return true;
 }
 
+QByteArray makeReadDigitalInputStates(quint8 address)
+{
+    QByteArray frame;
+    frame.reserve(8);
+    frame.append(static_cast<char>(address));
+    frame.append(static_cast<char>(ReadDiscreteInputs));
+    frame.append(static_cast<char>(DigitalInputStart >> 8));
+    frame.append(static_cast<char>(DigitalInputStart));
+    frame.append(static_cast<char>(DigitalInputCount >> 8));
+    frame.append(static_cast<char>(DigitalInputCount));
+    const quint16 crc = crc16(frame);
+    frame.append(static_cast<char>(crc));
+    frame.append(static_cast<char>(crc >> 8));
+    return frame;
+}
+
+bool takeReadDigitalInputStatesResponse(
+    QByteArray &buffer, quint8 expectedAddress, quint8 *inputMask,
+    quint8 *exceptionCode)
+{
+    if (!inputMask)
+        return false;
+    if (exceptionCode)
+        *exceptionCode = 0;
+
+    while (!buffer.isEmpty() &&
+           static_cast<quint8>(buffer.at(0)) != expectedAddress)
+        buffer.remove(0, 1);
+    if (buffer.size() < 2)
+        return false;
+
+    const quint8 function = static_cast<quint8>(buffer.at(1));
+    int frameSize = 0;
+    if (function == ReadDiscreteInputs) {
+        if (buffer.size() < 3)
+            return false;
+        if (static_cast<quint8>(buffer.at(2)) != 1) {
+            buffer.remove(0, 1);
+            return takeReadDigitalInputStatesResponse(
+                buffer, expectedAddress, inputMask, exceptionCode);
+        }
+        frameSize = 6;
+    } else if (function == (ReadDiscreteInputs | 0x80U)) {
+        frameSize = 5;
+    } else {
+        buffer.remove(0, 1);
+        return takeReadDigitalInputStatesResponse(
+            buffer, expectedAddress, inputMask, exceptionCode);
+    }
+
+    if (buffer.size() < frameSize)
+        return false;
+    const QByteArray frame = buffer.left(frameSize);
+    const quint16 receivedCrc =
+        static_cast<quint8>(frame.at(frameSize - 2)) |
+        (static_cast<quint16>(
+             static_cast<quint8>(frame.at(frameSize - 1))) << 8);
+    if (receivedCrc != crc16(frame.left(frameSize - 2))) {
+        buffer.remove(0, 1);
+        return takeReadDigitalInputStatesResponse(
+            buffer, expectedAddress, inputMask, exceptionCode);
+    }
+
+    buffer.remove(0, frameSize);
+    if (function & 0x80U) {
+        if (exceptionCode)
+            *exceptionCode = static_cast<quint8>(frame.at(2));
+        return true;
+    }
+    *inputMask = static_cast<quint8>(frame.at(3)) &
+                 static_cast<quint8>(
+                     (1U << DigitalInputCount) - 1U);
+    return true;
+}
+
 QByteArray makeWriteSingleRegister(quint8 address, quint16 reg,
                                    quint16 value)
 {
