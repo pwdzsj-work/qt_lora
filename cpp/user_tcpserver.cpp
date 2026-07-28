@@ -21,6 +21,7 @@ user_tcpserver :: user_tcpserver(QObject *parent):  QObject(parent)
     timerTaskedit = new QTimer(this);
     loraTimer = new QTimer(this);
     loraSerialPort = new QSerialPort(this);
+    wifiDiscovery = new WifiDeviceDiscovery(this);
     //连接信号槽
     connect(tcpserver,&QTcpServer::newConnection,this,&user_tcpserver::user_server_New_Connect);
     connect(timerTask, &QTimer::timeout, this, &user_tcpserver::timerUpDate);
@@ -30,6 +31,28 @@ user_tcpserver :: user_tcpserver(QObject *parent):  QObject(parent)
             &user_tcpserver::loraSerialReadyRead);
     connect(loraSerialPort, &QSerialPort::errorOccurred, this,
             &user_tcpserver::loraSerialError);
+    connect(wifiDiscovery, &WifiDeviceDiscovery::deviceStatusReceived,
+            this, &user_tcpserver::wifiDeviceStatusReceived);
+    connect(wifiDiscovery, &WifiDeviceDiscovery::deviceOffline,
+            this, &user_tcpserver::wifiDeviceOffline);
+    connect(wifiDiscovery, &WifiDeviceDiscovery::clockSyncFinished, this,
+            [this](const QString &ip, bool success,
+                   const QString &message) {
+                const QString mac = wifiDeviceMacs.value(ip);
+                if (!mac.isEmpty())
+                    emit loraClockSyncFinished(mac, success, message);
+            });
+    connect(wifiDiscovery, &WifiDeviceDiscovery::searchStarted, this,
+            [this](int count) {
+                emit wifiSearchStatusChanged(
+                    QStringLiteral("正在搜索同一WiFi网段（%1个地址）…")
+                        .arg(count));
+            });
+    connect(wifiDiscovery, &WifiDeviceDiscovery::searchFinished, this,
+            [this](int count) {
+                emit wifiSearchStatusChanged(
+                    QStringLiteral("搜索完成，发现%1台设备").arg(count));
+            });
 
     for(quint8 i = 0; i < 100; i ++)
     {
@@ -123,6 +146,12 @@ bool user_tcpserver::setLoraAnalogInputMode(const QString &mac,
 
 bool user_tcpserver::synchronizeLoraTerminalClock(const QString &mac)
 {
+    for (auto it = wifiDeviceMacs.constBegin();
+         it != wifiDeviceMacs.constEnd(); ++it) {
+        if (it.value() == mac)
+            return wifiDiscovery->synchronizeClock(it.key());
+    }
+
     if (!loraTerminals.contains(mac) || !loraPendingClockMac.isEmpty() ||
         loraRequestKind == LoraRequestKind::WriteClock)
         return false;
@@ -160,11 +189,20 @@ void user_tcpserver::loraSerialError(QSerialPort::SerialPortError error)
 void user_tcpserver::tcpServerListen()
 {
     qDebug() << "Roger Test Beging..............";
-    //监听指定的端口
-    if(!tcpserver->listen(QHostAddress::Any, 11211))
-    {
-        return;
+    // WiFi 搜索不依赖旧终端使用的 TCP 监听端口。即使 11211 被
+    // 另一个旧版上位机占用，也必须继续搜索同一局域网的 ESP32。
+    if (!tcpserver->isListening() &&
+        !tcpserver->listen(QHostAddress::Any, 11211)) {
+        qWarning() << "TCP port 11211 listen failed:"
+                   << tcpserver->errorString()
+                   << "- WiFi discovery will continue";
     }
+    wifiDiscovery->startSearch();
+}
+
+void user_tcpserver::searchWifiDevices()
+{
+    wifiDiscovery->startSearch();
 }
 void user_tcpserver::user_server_New_Connect()
 {
@@ -656,6 +694,129 @@ QString user_tcpserver::makeLoraTerminalId(QIODevice *transport,
                                                QLatin1Char('0')).toUpper());
     }
     return bytes.join(QLatin1Char('-'));
+}
+
+QString user_tcpserver::makeWifiTerminalId(const QString &ip) const
+{
+    const QByteArray identity =
+        QStringLiteral("WIFI:%1").arg(ip).toUtf8();
+    quint64 hash = Q_UINT64_C(1469598103934665603);
+    for (const char value : identity) {
+        hash ^= static_cast<quint8>(value);
+        hash *= Q_UINT64_C(1099511628211);
+    }
+
+    QStringList bytes;
+    for (int i = 0; i < 6; ++i) {
+        quint8 value =
+            static_cast<quint8>(hash >> ((5 - i) * 8));
+        if (i == 0)
+            value = static_cast<quint8>((value | 0x02U) & 0xFEU);
+        bytes.append(QStringLiteral("%1").arg(
+            value, 2, 16, QLatin1Char('0')).toUpper());
+    }
+    return bytes.join(QLatin1Char('-'));
+}
+
+void user_tcpserver::wifiDeviceStatusReceived(WifiDeviceStatus status)
+{
+    const QString mac =
+        wifiDeviceMacs.value(status.ip, makeWifiTerminalId(status.ip));
+    wifiDeviceMacs.insert(status.ip, mac);
+
+    sqlitefun sqlite;
+    QString id = sqlite.findsqldataID("devdata", "dev_mac", mac);
+    const bool isNew = id == "FAIL" || id == "NONE";
+    if (isNew) {
+        sqlite.nOIDinsterweizhidata("devdata", "dev_mac", mac);
+        id = sqlite.findsqldataID("devdata", "dev_mac", mac);
+    }
+    if (id == "FAIL" || id == "NONE" || id.toUInt() >= 100)
+        return;
+    const quint8 row = static_cast<quint8>(id.toUInt());
+
+    QStringList voltageValues;
+    QStringList currentValues;
+    QStringList relayStates;
+    QStringList inputStates;
+    QStringList signalValues;
+    double totalCurrent = 0.0;
+    for (int channel = 0; channel < 4; ++channel) {
+        const double voltage = status.voltage.value(channel);
+        const double current = status.current.value(channel);
+        voltageValues.append(QString::number(voltage, 'f', 2));
+        currentValues.append(QString::number(current, 'f', 2));
+        if (status.currentMode.value(channel))
+            totalCurrent += current;
+        inputStates.append((status.inputMask & (1U << channel))
+                               ? QStringLiteral("1")
+                               : QStringLiteral("0"));
+        relayStates.append((status.relayMask & (1U << channel))
+                               ? QStringLiteral("1")
+                               : QStringLiteral("0"));
+        signalValues.append(inputStates.last());
+    }
+    for (int channel = 0; channel < 4; ++channel) {
+        signalValues.append(QString::number(
+            status.currentMode.value(channel)
+                ? status.current.value(channel)
+                : status.voltage.value(channel),
+            'f', 2));
+    }
+    for (int channel = 0; channel < 4; ++channel) {
+        signalValues.append(status.currentMode.value(channel)
+                                ? QStringLiteral("1")
+                                : QStringLiteral("0"));
+    }
+
+    sqlite.updaterowdata("devdata", "dev_ip",
+                         QStringLiteral("WIFI:%1").arg(status.ip), row);
+    sqlite.updaterowdata("devdata", "dev_485adr", "01", row);
+    sqlite.updaterowdata("devdata", "dev_linestate", "1", row);
+    sqlite.updaterowdata("devdata", "dev_kind", "4", row);
+    sqlite.updaterowdata("devdata", "dev_softver", "ESP32-WIFI", row);
+    sqlite.updaterowdata("devdata", "dev_chvolt",
+                         voltageValues.join(QLatin1Char('#')), row);
+    sqlite.updaterowdata("devdata", "dev_chcurr",
+                         currentValues.join(QLatin1Char('#')), row);
+    sqlite.updaterowdata("devdata", "dev_chswstate1",
+                         relayStates.join(QLatin1Char('#')), row);
+    sqlite.updaterowdata("devdata", "dev_inputvolt",
+                         voltageValues.value(0), row);
+    sqlite.updaterowdata("devdata", "dev_totalcurr",
+                         QString::number(totalCurrent, 'f', 2), row);
+
+    if (isNew) {
+        sqlite.updaterowdata("devdata", "dev_name",
+                             QStringLiteral("WiFi终端"), row);
+        sqlite.updaterowdata("devdata", "dev_chname",
+                             QStringLiteral("CH1#CH2#CH3#CH4"), row);
+        sqlite.updaterowdata("devdata", "dev_temp", "---", row);
+    }
+
+    if (isNew) {
+        emit QmlModelShowData(0, status.ip, mac,
+                              QStringList{QStringLiteral("---")}, 0);
+    }
+    emit QmlModelShowData(1, status.ip, mac, voltageValues, 0);
+    emit QmlModelShowData(2, status.ip, mac, currentValues, 0);
+    emit QmlModelShowData(4, status.ip, mac, relayStates, 0);
+    emit QmlModelShowData(5, status.ip, mac, signalValues, 0);
+    emit QmlModelShowData(6, status.ip, mac, inputStates, 0);
+}
+
+void user_tcpserver::wifiDeviceOffline(QString ip)
+{
+    const QString mac = wifiDeviceMacs.take(ip);
+    if (mac.isEmpty())
+        return;
+    sqlitefun sqlite;
+    const QString id = sqlite.findsqldataID("devdata", "dev_mac", mac);
+    if (id != "FAIL" && id != "NONE" && id.toUInt() < 100) {
+        sqlite.updaterowdata("devdata", "dev_linestate", "0",
+                             static_cast<quint8>(id.toUInt()));
+    }
+    emit deleqmlshowmodel(mac);
 }
 
 void user_tcpserver::handleLoraDiscovered(

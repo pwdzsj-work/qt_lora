@@ -11,6 +11,7 @@
 #include "user_global_param.h"
 #include "DeviceDataStr.h"
 #include "lora_modbus_protocol.h"
+#include "wifi_device_discovery.h"
 class user_tcpserver: public QObject
 {
         Q_OBJECT
@@ -38,6 +39,7 @@ public:
                                             int channel,
                                             bool currentMode);
     Q_INVOKABLE bool synchronizeLoraTerminalClock(const QString &mac);
+    Q_INVOKABLE void searchWifiDevices();
   //  Q_INVOKABLE QString user_tcpserver::qmlsenddatatodev();
    // void TcpServerStopListen();//停止监听
     QTcpServer* tcpserver;
@@ -58,6 +60,7 @@ signals:
     void chargequiccontrolstate(QString inst,QString statesw);
     void loraSerialStatusChanged(bool opened, QString message);
     void loraClockSyncFinished(QString mac, bool success, QString message);
+    void wifiSearchStatusChanged(QString message);
 private slots:
     void user_server_New_Connect();
     void serversocker_Retrun_Data();
@@ -65,6 +68,8 @@ private slots:
     void loraTimerUpdate();
     void loraSerialReadyRead();
     void loraSerialError(QSerialPort::SerialPortError error);
+    void wifiDeviceStatusReceived(WifiDeviceStatus status);
+    void wifiDeviceOffline(QString ip);
   //  void timertaskcontrol();
 private:
     struct LoraTerminalEndpoint {
@@ -95,6 +100,7 @@ private:
     void handleLoraRelayStates(const QString &mac, quint8 relayMask);
     void handleLoraDigitalInputs(const QString &mac, quint8 inputMask);
     QString makeLoraTerminalId(QIODevice *transport, quint8 address) const;
+    QString makeWifiTerminalId(const QString &ip) const;
     void handleLoraRequestTimeout();
     void setLoraTerminalOffline(const QString &mac);
     void removeLoraTransport(QIODevice *transport);
@@ -105,6 +111,8 @@ private:
     void restartLoraDiscovery();
 
     QHash<QIODevice *, QByteArray> loraModbusBuffers;
+    WifiDeviceDiscovery *wifiDiscovery;
+    QHash<QString, QString> wifiDeviceMacs;
     QHash<QString, quint8> loraPollFailures;
     QHash<QString, LoraTerminalEndpoint> loraTerminals;
     QString loraPollingMac;

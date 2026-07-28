@@ -197,60 +197,11 @@ Page {
             }
         }
         Text {
-            id: device_name_s1
-            anchors.left:parent.left
-            anchors.leftMargin: setWindow.infoColumnWidth
-            anchors.top:parent.top
-            anchors.topMargin: 85
-            text: qsTr("输入电压:")
-            font.family: "宋体"
-            font.pointSize: 13
-        }
-        Text {
-            id: device_Info_Ave_V
-            anchors.left:parent.left
-            anchors.leftMargin: setWindow.infoColumnWidth + 90
-            anchors.top:parent.top
-            anchors.topMargin: 85
-            color: "#588cfc"
-            text: qsTr("220V")
-            font.family: "宋体"
-            font.pointSize: 13
-        }
-
-
-        Text {
-            id: device_name_s2
-            anchors.left:parent.left
-            anchors.leftMargin: setWindow.compactLayout ? 10 : setWindow.infoColumnWidth * 2
-            anchors.top:parent.top
-            anchors.topMargin: setWindow.compactLayout ? 133 : 85
-            text: qsTr("设备温度:")
-            font.family: "宋体"
-            font.pointSize: 13
-        }
-
-
-
-        Text {
-            id: device_Info_Temp
-            height: 18
-            anchors.left:parent.left
-            anchors.leftMargin: setWindow.compactLayout ? 100 : setWindow.infoColumnWidth * 2 + 90
-            anchors.top:parent.top
-            anchors.topMargin: setWindow.compactLayout ? 130 : 82
-            color: "#588cfc"
-            text: qsTr("40℃")
-            font.family: "宋体"
-            font.pointSize: 13
-        }
-
-        Text {
             id: device_name_s5
             anchors.left:parent.left
             anchors.leftMargin: 10
             anchors.top:parent.top
-            anchors.topMargin: 133
+            anchors.topMargin: 124
             text: qsTr("IP:")
             font.family: "宋体"
             font.pointSize: 13
@@ -261,7 +212,7 @@ Page {
             anchors.left:parent.left
             anchors.leftMargin: 45
             anchors.top:parent.top
-            anchors.topMargin: 133
+            anchors.topMargin: 124
             color: "#588cfc"
             text: qsTr("192.168.3.5")
             font.family: "宋体"
@@ -269,34 +220,11 @@ Page {
         }
 
         Text {
-            id: device_name_s7
-            anchors.left:parent.left
-            anchors.leftMargin: setWindow.infoColumnWidth
-            anchors.top:parent.top
-            anchors.topMargin: 133
-            text: qsTr("设备电流:")
-            font.family: "宋体"
-            font.pointSize: 13
-        }
-
-        Text {
-            id: device_Info_Total_I
-            anchors.left:parent.left
-            anchors.leftMargin: setWindow.infoColumnWidth + 90
-            anchors.top:parent.top
-            anchors.topMargin: 133
-            color: "#588cfc"
-            text: qsTr("20A")
-            font.family: "宋体"
-            font.pointSize: 13
-        }
-
-        Text {
             id: device_onlinestate
-            anchors.left:parent.left
-            anchors.leftMargin: setWindow.compactLayout ? 10 : setWindow.infoColumnWidth * 2
+            anchors.right: device_Info_State.left
+            anchors.rightMargin: 8
             anchors.top:parent.top
-            anchors.topMargin: setWindow.compactLayout ? 181 : 133
+            anchors.topMargin: 86
             text: qsTr("在线状态:")
             font.family: "宋体"
             font.pointSize: 13
@@ -304,26 +232,27 @@ Page {
 
         Text {
             id: device_Info_State
-            width: 34
+            width: 50
             height: 18
-            anchors.left:parent.left
-            anchors.leftMargin: setWindow.compactLayout ? 100 : setWindow.infoColumnWidth * 2 + 90
+            anchors.right: parent.right
+            anchors.rightMargin: 34
             anchors.top:parent.top
-            anchors.topMargin: setWindow.compactLayout ? 179 : 131
+            anchors.topMargin: 84
             color: "#588cfc"
             text: qsTr("在线")
             font.family: "宋体"
             font.pointSize: 13
         }
-        Text {
+        Rectangle {
             id: device_name_s12
             anchors.left:parent.left
-            anchors.leftMargin: 5
+            anchors.leftMargin: 10
+            anchors.right: parent.right
+            anchors.rightMargin: 10
             anchors.top:parent.top
-            anchors.topMargin: 160
-            text: qsTr("_________________________________________________________________________________________________________________________________________________")
-            font.family: "宋体"
-            font.pointSize: 13
+            anchors.topMargin: 149
+            height: 1
+            color: "#b8bec8"
         }
         Text {
             id: device_name_s11
@@ -357,7 +286,7 @@ Page {
             anchors.left:parent.left
             anchors.leftMargin: 10
             anchors.top:parent.top
-            anchors.topMargin: 195
+            anchors.topMargin: 164
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.rightMargin: 10
@@ -590,11 +519,8 @@ Page {
                 dev_chvoltbuf = sqlrowbuf[14].split("#");//电压
                 dev_chcurrtbuf = sqlrowbuf[15].split("#");//电流
                 device_Info_Name.text = sqlrowbuf[7]//设备名字
-                device_Info_Ave_V.text = sqlrowbuf[9] + "V"//设备输入电压
-                device_Info_Temp.text = sqlrowbuf[10]//温度
                 getipstr = sqlrowbuf[2].split("+");
                 device_info_IP.text = getipstr[0]//Ip
-                 device_Info_Total_I.text = sqlrowbuf[11] + "A"//设备总电流
                 if(sqlrowbuf[12] === "1")//在线状态
                 {
                     device_Info_State.text = "在线"
@@ -645,34 +571,101 @@ Page {
             anchors.left: parent.left
             anchors.leftMargin: 306
             anchors.top: parent.top
-            anchors.topMargin: 82
-            width: 62
-            height: 23
-            text: qsTr("校时")
-            font.pixelSize: 13
-            padding: 2
+            anchors.topMargin: 80
+            width: 76
+            height: 27
+            hoverEnabled: true
+            padding: 0
+            contentItem: Item {
+                opacity: clockSyncButton.enabled ? 1.0 : 0.72
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 5
+                    Item {
+                        width: 14
+                        height: 14
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 7
+                            color: "transparent"
+                            border.color: "#ffffff"
+                            border.width: 1.4
+                        }
+                        Rectangle {
+                            x: 6.4
+                            y: 3
+                            width: 1.2
+                            height: 4.2
+                            radius: 0.6
+                            color: "#ffffff"
+                        }
+                        Rectangle {
+                            x: 6.5
+                            y: 6.3
+                            width: 3.6
+                            height: 1.2
+                            radius: 0.6
+                            color: "#ffffff"
+                        }
+                    }
+                    Text {
+                        text: qsTr("校时")
+                        color: "#ffffff"
+                        font.pixelSize: 13
+                        font.bold: true
+                    }
+                }
+            }
+            background: Rectangle {
+                radius: 5
+                color: !clockSyncButton.enabled ? "#9bb4dc"
+                       : clockSyncButton.down ? "#244f91"
+                       : clockSyncButton.hovered ? "#477fda"
+                       : "#356fbd"
+                border.color: clockSyncButton.hovered && clockSyncButton.enabled
+                              ? "#79a6ec" : "#2c62ad"
+                border.width: 1
+            }
             onClicked: {
                 if (user_tcpserver_qmlobj.synchronizeLoraTerminalClock(
                             device_mac_s1.text)) {
                     enabled = false
                     clockSyncState.text = qsTr("校时中…")
                     clockSyncState.color = "#356fbd"
+                    clockSyncBadge.color = "#edf4ff"
+                    clockSyncBadge.border.color = "#b9d1f5"
                 } else {
                     clockSyncState.text = qsTr("终端未在线")
                     clockSyncState.color = "#b02a37"
+                    clockSyncBadge.color = "#fff0f1"
+                    clockSyncBadge.border.color = "#efbec3"
                 }
             }
         }
-        Text {
-            id: clockSyncState
+        Rectangle {
+            id: clockSyncBadge
             anchors.left: clockSyncButton.right
             anchors.leftMargin: 7
             anchors.verticalCenter: clockSyncButton.verticalCenter
-            width: 72
-            text: ""
-            font.pixelSize: 12
-            color: "#356fbd"
-            elide: Text.ElideRight
+            width: clockSyncState.text === "" ? 0 : 92
+            height: 24
+            radius: 5
+            color: "transparent"
+            border.color: "transparent"
+            border.width: 1
+            visible: clockSyncState.text !== ""
+            Text {
+                id: clockSyncState
+                anchors.fill: parent
+                anchors.leftMargin: 6
+                anchors.rightMargin: 6
+                text: ""
+                font.pixelSize: 12
+                color: "#356fbd"
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
+                elide: Text.ElideRight
+            }
         }
 
         function updateTerminalSignals(devicemac, signalValues) {
@@ -702,6 +695,8 @@ Page {
             clockSyncButton.enabled = true
             clockSyncState.text = message
             clockSyncState.color = success ? "#198754" : "#b02a37"
+            clockSyncBadge.color = success ? "#e9f7ef" : "#fff0f1"
+            clockSyncBadge.border.color = success ? "#b9dfc8" : "#efbec3"
         }
     }
 }

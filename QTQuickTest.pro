@@ -17,6 +17,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 SOURCES += \
     cpp/DeviceDataStr.cpp \
     cpp/lora_modbus_protocol.cpp \
+    cpp/wifi_device_discovery.cpp \
     cpp/sqlitefun.cpp \
     cpp/user_global_param.cpp \
     cpp/user_tcpserver.cpp \
@@ -45,6 +46,7 @@ FORMS +=
 HEADERS += \
     cpp/DeviceDataStr.h \
     cpp/lora_modbus_protocol.h \
+    cpp/wifi_device_discovery.h \
     cpp/sqlitefun.h \
     cpp/user_global_param.h \
     cpp/user_tcpserver.h

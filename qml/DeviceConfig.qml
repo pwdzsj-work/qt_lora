@@ -445,6 +445,34 @@ Page {
                     font.pixelSize: 14
                 }
             }
+            Row {
+                anchors.top: parent.top
+                anchors.topMargin: 200
+                anchors.left: parent.left
+                anchors.leftMargin: 20
+                spacing: 10
+
+                Text {
+                    text: qsTr("WiFi设备")
+                    anchors.verticalCenter: parent.verticalCenter
+                    font.pixelSize: 16
+                }
+                Button {
+                    text: qsTr("搜索同一WiFi设备")
+                    onClicked: {
+                        wifiSearchState.text = qsTr("正在搜索…")
+                        wifiSearchState.color = "#356fbd"
+                        user_tcpserver_qmlobj.searchWifiDevices()
+                    }
+                }
+                Text {
+                    id: wifiSearchState
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: qsTr("等待搜索")
+                    color: "#5f6b7a"
+                    font.pixelSize: 14
+                }
+            }
             Connections {
                 target: user_tcpserver_qmlobj
                 function onLoraSerialStatusChanged(opened, message) {
@@ -452,6 +480,10 @@ Page {
                     loraSerialState.color = opened ? "#198754" : "#b02a37"
                     loraSerialButton.text = opened ? qsTr("断开")
                                                    : qsTr("连接")
+                }
+                function onWifiSearchStatusChanged(message) {
+                    wifiSearchState.text = message
+                    wifiSearchState.color = "#198754"
                 }
             }
         }
